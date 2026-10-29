@@ -31,6 +31,11 @@ const context = await chromium.launchPersistentContext(profile, {
   acceptDownloads: true,
 })
 const page = context.pages()[0] ?? (await context.newPage())
+// A save dialog cannot be answered while recording, so the export takes its download fallback.
+await page.addInitScript(() => {
+  delete (window as { showSaveFilePicker?: unknown }).showSaveFilePicker
+  delete (Window.prototype as { showSaveFilePicker?: unknown }).showSaveFilePicker
+})
 try {
   await page.goto(`${baseURL}/#/import`)
   mark('open')
@@ -68,20 +73,32 @@ try {
     await page.keyboard.press('Escape')
   }
 
+  // The corrected modeller: the logged model routed to itself with neutral assumptions saves exactly $0,
+  // and the baseline at the logged model differs by exactly $0. Then a real routing change.
   const savings = page.getByTestId('savings-panel')
   await savings.scrollIntoViewIfNeeded()
   mark('savings')
-  await savings.getByLabel('Baseline model', { exact: true }).fill('gpt-4o-mini')
-  await savings.getByRole('button', { name: 'Model the baseline' }).click()
-  await pause(page, 3500)
-  await savings.getByLabel('Target model', { exact: true }).fill('gpt-4o-mini')
+  await savings.getByTestId('baseline-model').fill('gpt-4o')
+  await savings.getByTestId('source-model-gpt-4o').check()
+  await savings.getByTestId('target-model').fill('gpt-4o')
+  await pause(page, 1500)
+  await savings.getByTestId('run-savings').click()
+  mark('scenario1-start')
+  await page.waitForFunction(() => document.querySelector('[data-testid="routing-savings"]')?.textContent?.startsWith('$'), null, { timeout: 300_000 })
+  mark('scenario1-done')
+  await savings.getByTestId('savings-result').scrollIntoViewIfNeeded()
+  await pause(page, 6000)
+  await savings.getByTestId('baseline-model').fill('')
+  await savings.getByTestId('target-model').fill('gpt-4o-mini')
   await savings.getByLabel('Eligible share (0 to 1)').fill('0.5')
   await savings.getByLabel('Retry and fallback rate').fill('0.05')
-  await savings.getByRole('button', { name: 'Model the routing scenario' }).click()
-  await pause(page, 1000)
-  await savings.getByRole('button', { name: 'Model the routing scenario' }).scrollIntoViewIfNeeded()
-  await page.mouse.wheel(0, 250)
-  await pause(page, 5000)
+  await pause(page, 1500)
+  await savings.getByTestId('run-savings').click()
+  mark('scenario2-start')
+  await page.waitForFunction(() => (document.querySelector('[data-testid="savings-result"]')?.textContent ?? '').includes('Routing to gpt-4o-mini'), null, { timeout: 300_000 })
+  mark('scenario2-done')
+  await savings.getByTestId('savings-result').scrollIntoViewIfNeeded()
+  await pause(page, 6000)
 
   await page.getByTestId('export-csv').scrollIntoViewIfNeeded()
   mark('export-start')
