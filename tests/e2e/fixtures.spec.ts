@@ -81,3 +81,11 @@ test('custom CSV goes through the mapping step with a 20 row preview', async ({ 
   await page.getByTestId('import-button').click()
   await expect(page.getByTestId('coverage-panel')).toBeVisible()
 })
+
+test('an absent output count shows as not measured, never as 0, and the row is Unresolved', async ({ page }) => {
+  await importFixture(page, 'edge-missing-output.jsonl')
+  const first = page.getByTestId('row-table').locator('[data-row-index="0"]')
+  await expect(first).toContainText('not measured')
+  await expect(first).toContainText('Unresolved')
+  await expect(page.getByTestId('partial-total')).toContainText('output tokens missing')
+})

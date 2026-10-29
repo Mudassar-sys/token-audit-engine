@@ -156,6 +156,11 @@ export function RowTable({ client, rowCount, onOpen }: Props) {
   )
 }
 
+/** A token count, or 'not measured' when the source did not log that class. Absent is never shown as 0. */
+function tokenCell(row: AuditRow, cls: string, value: number): string {
+  return row.notMeasured.some((n) => n === cls || n.startsWith(`${cls}.`)) ? 'not measured' : formatInt(value)
+}
+
 function RowCells({ row }: { row: AuditRow }) {
   const t = row.tokens
   const cells = [
@@ -164,10 +169,10 @@ function RowCells({ row }: { row: AuditRow }) {
     row.modelLogged ?? 'no model',
     row.provider ?? 'unknown',
     row.tierStated ?? `${row.tierApplied} (assumed)`,
-    formatInt(t.uncachedInput),
-    formatInt(t.cacheRead),
-    formatInt(sumCacheWrite(t.cacheWrite)),
-    formatInt(t.output),
+    tokenCell(row, 'uncachedInput', t.uncachedInput),
+    tokenCell(row, 'cacheRead', t.cacheRead),
+    tokenCell(row, 'cacheWrite', sumCacheWrite(t.cacheWrite)),
+    tokenCell(row, 'output', t.output),
     rowValueText(row),
     row.counted ? row.cost.label.kind : `${row.cost.label.kind}, not counted`,
   ]
