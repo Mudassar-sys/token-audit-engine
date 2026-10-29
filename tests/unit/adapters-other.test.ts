@@ -425,7 +425,7 @@ describe('OpenTelemetry spans (G)', () => {
     expect(agent.counted).toBe(false)
     expect(agent.flags).toContain('aggregate_span')
     expect(agent.flags).not.toContain('aggregate_mismatch')
-    expect(agent.mapping.join('\n')).toContain('sum of 2 counted descendant span(s): input 3000, output 700 (match)')
+    expect(agent.mapping.join('\n')).toContain('sum of 2 descendant span(s) in the row counts: input 3000, output 700 (match)')
     const trace = rows.filter((r) => r.raw.traceId === '5b8efff798038103d269b633813fc60c' && r.counted)
     expect(trace).toHaveLength(2)
     const input = trace.reduce((a, r) => a + r.tokens.uncachedInput + r.tokens.cacheRead + r.tokens.cacheWrite['5m'] + r.tokens.cacheWrite['30m'], 0)
@@ -437,7 +437,7 @@ describe('OpenTelemetry spans (G)', () => {
     const wf = byName(rows, 'invoke_workflow nightly')
     expect(wf.counted).toBe(false)
     expect(wf.flags).toEqual(expect.arrayContaining(['aggregate_span', 'aggregate_mismatch']))
-    expect(wf.mapping.join('\n')).toContain('Own input 5000, output 1000; sum of 1 counted descendant span(s): input 4000, output 900 (mismatch)')
+    expect(wf.mapping.join('\n')).toContain('Own input 5000, output 1000; sum of 1 descendant span(s) in the row counts: input 4000, output 900 (mismatch)')
   })
 
   it('marks cache reads above input as Unresolved', () => {
@@ -448,12 +448,12 @@ describe('OpenTelemetry spans (G)', () => {
     expect(r.unresolvedReason).toBe('cache tokens exceed input tokens; no documented producer rule')
   })
 
-  it('flags a span without operation name that overlaps a counted child', () => {
+  it('flags a span without operation name that overlaps a child in the row counts', () => {
     const rows = rowsOf('g-otel-spans.json', 'G-otlp')
     const parent = byName(rows, 'llm.request')
     expect(parent.counted).toBe(true)
-    expect(parent.flags).toContain('overlaps_counted_child')
-    expect(parent.unresolvedReason).toBe('overlaps a counted child span; review needed')
+    expect(parent.flags).toContain('overlaps_child_in_row_counts')
+    expect(parent.unresolvedReason).toBe('overlaps a child span that is in the row counts; review needed')
     const child = byName(rows, 'chat gpt-4o-mini')
     expect(child.flags).toEqual([])
     expect(child.unresolvedReason).toBeNull()
@@ -558,7 +558,7 @@ describe('OpenTelemetry spans (G)', () => {
     const rows = runSpans([span('a1', null, 'invoke_agent'), span('c1', 'a1', 'chat'), span('f1', 'a1', 'fetch_response')])
     const agent = byName(rows, 'invoke_agent a1')
     expect(agent.flags).toEqual(['aggregate_span'])
-    expect(agent.mapping.join('\n')).toContain('sum of 1 counted descendant span(s): input 1000, output 100 (match); 1 fetch_response span(s) with usage left out of the sum')
+    expect(agent.mapping.join('\n')).toContain('sum of 1 descendant span(s) in the row counts: input 1000, output 100 (match); 1 fetch_response span(s) with usage left out of the sum')
     expect(byName(rows, 'fetch_response f1').unresolvedReason).toContain('fetch_response')
     const mismatch = runSpans([span('a1', null, 'invoke_agent', [], 2000, 200), span('c1', 'a1', 'chat'), span('f1', 'a1', 'fetch_response')])
     expect(byName(mismatch, 'invoke_agent a1').flags).toContain('aggregate_mismatch')

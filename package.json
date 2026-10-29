@@ -4,7 +4,7 @@
   "description": "Browser-only token-cost audit engine, built as a working demonstration for a token-cost audit requirement.",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsx scripts/engine-fingerprint.ts && tsc -b && vite build",
     "preview": "vite preview --port 4173 --strictPort",
     "typecheck": "tsc -b --noEmit",
     "lint": "eslint .",
@@ -12,7 +12,10 @@
     "test:e2e": "playwright test",
     "pricing:refresh": "tsx scripts/refresh-pricing.ts",
     "pricing:validate": "tsx scripts/validate-pricing.ts",
-    "schemas": "tsx scripts/export-schemas.ts"
+    "schemas": "tsx scripts/export-schemas.ts",
+    "fingerprint": "tsx scripts/engine-fingerprint.ts",
+    "predev": "tsx scripts/engine-fingerprint.ts",
+    "prepreview": "tsx scripts/engine-fingerprint.ts"
   },
   "license": "MIT",
   "type": "module",

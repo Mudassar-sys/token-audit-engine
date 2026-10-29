@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
-export const ENGINE_VERSION = '1.0.0'
-export const SCHEMA_VERSION = 1
+export const ENGINE_VERSION = '1.1.0'
+export const SCHEMA_VERSION = 2
 
 /** Every supported input variant. Anything else is "not supported yet". */
 export const VariantId = z.enum([
@@ -58,7 +58,7 @@ export const Flag = z.enum([
   'totals_disagree',
   'cache_exceeds_input',
   'aggregate_span',
-  'overlaps_counted_child',
+  'overlaps_child_in_row_counts',
   'aggregate_mismatch',
   'cost_inconsistent',
   'malformed',
@@ -83,7 +83,7 @@ export const TokenClasses = z.object({
 })
 export type TokenClasses = z.infer<typeof TokenClasses>
 
-/** Counted but never folded into token cost. */
+/** Tallied but never folded into token cost. */
 export const ExcludedUsage = z.record(z.string(), z.number().nonnegative())
 export type ExcludedUsage = z.infer<typeof ExcludedUsage>
 
@@ -119,7 +119,10 @@ export const NormalizedUsageRow = z.object({
   flags: z.array(Flag),
   /** When set the row cannot be costed without review. */
   unresolvedReason: z.string().nullable(),
-  /** false for rows kept only to reconcile children (aggregate spans). */
+  /**
+   * Included in row counts. false for rows kept only to reconcile other rows (aggregate spans).
+   * Inclusion in cost totals is a separate question: counted and a value that is not null.
+   */
   counted: z.boolean(),
   /** Request count represented by the row (1 for request rows). */
   requests: z.number().int().nonnegative(),
@@ -262,6 +265,8 @@ export type ReportSettings = z.infer<typeof ReportSettings>
 
 export const IdentityInputs = z.object({
   inputFileSha256: z.string(),
+  /** The variant the file was read as. Variants that share an adapter parse a file differently. */
+  variant: VariantId,
   mapping: CustomCsvMapping.nullable(),
   adapters: z.array(z.object({ id: z.string(), version: z.string() })),
   schemaVersion: z.number().int(),
@@ -271,6 +276,8 @@ export const IdentityInputs = z.object({
   priceOverrides: z.array(PriceOverride),
   reportSettings: ReportSettings,
   engineVersion: z.string(),
+  /** SHA-256 of the engine and adapter source files, computed at build time (scripts/engine-fingerprint.ts). */
+  engineFingerprint: z.string().regex(/^[0-9a-f]{64}$/),
   /** Cache-write duration mapping used by the savings modeller, when one ran. */
   durationMap: DurationMap.nullable().optional(),
 })
@@ -280,7 +287,8 @@ const AmountPair = z.object({ exactUsd: DecimalString, displayUsd: z.string() })
 
 export const Coverage = z.object({
   totalRows: z.number().int(),
-  countedRows: z.number().int(),
+  /** Rows included in row counts: every row except aggregates kept only to reconcile other rows. */
+  rowsInRowCounts: z.number().int(),
   rowsWithProviderUsage: z.number().int(),
   rowsPriced: z.number().int(),
   rowsNotPriced: z.number().int(),
@@ -322,6 +330,8 @@ export const Report = z.object({
     detection: z.object({ variant: VariantId.nullable(), confidence: z.number(), overridden: z.boolean() }),
     snapshot: FrozenSnapshot.extend({ sourceUrl: z.string() }),
     priceLabel: z.string(),
+    /** SHA-256 of the engine and adapter source files this build was made from. */
+    engineFingerprint: z.string().regex(/^[0-9a-f]{64}$/),
   }),
   coverage: Coverage,
   totals: z.object({
@@ -392,7 +402,7 @@ export const ScenarioResult = z.object({
       notes: z.array(z.string()),
     })
     .nullable(),
-  /** Measured charges compared with the list price of the same rows. Never counted as savings. */
+  /** Measured charges compared with the list price of the same rows. Never included in savings. */
   loggedVersusList: z
     .object({
       label: z.literal('logged charges versus list price'),

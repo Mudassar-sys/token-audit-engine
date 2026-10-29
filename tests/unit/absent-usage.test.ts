@@ -27,7 +27,7 @@ const engine = createPricingEngine(snapshot, meta)
 const OUTPUT_MISSING = 'output tokens missing, cost would be understated'
 const INPUT_MISSING = 'input tokens missing, cost would be understated'
 const BOTH_MISSING = 'input and output tokens missing, cost would be understated'
-const SUBTOTAL_REASON = 'subtotal of the classes present; not counted in totals'
+const SUBTOTAL_REASON = 'subtotal of the classes present; not included in cost totals'
 
 /** 1,000 input tokens at the gpt-4o list rate of $0.0000025. */
 const GPT4O_INPUT_1000 = usdToFemto('0.0025')

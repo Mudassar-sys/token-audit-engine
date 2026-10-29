@@ -1,4 +1,5 @@
 import { ENGINE_VERSION, IdentityInputs, Report, SCHEMA_VERSION, type AuditRow, type AuditSummary } from './contracts'
+import { ENGINE_FINGERPRINT } from './fingerprint.generated'
 import { calculationIdentity, canonicalIdentityInputs } from './identity'
 import { formatUsd, usdToFemto } from './money'
 import { priceLabel } from './pricing'
@@ -17,7 +18,8 @@ export const CSV_COLUMNS = [
   'tierApplied',
   'granularity',
   'requests',
-  'counted',
+  'includedInRowCounts',
+  'includedInCostTotals',
   'uncachedInput',
   'cacheRead',
   'cacheWrite5m',
@@ -80,7 +82,8 @@ function cellsOf(row: AuditRow): unknown[] {
     tierApplied: row.tierApplied,
     granularity: row.granularity,
     requests: row.requests,
-    counted: row.counted,
+    includedInRowCounts: row.counted,
+    includedInCostTotals: row.counted && row.cost.valueUsd !== null,
     uncachedInput: t.uncachedInput,
     cacheRead: t.cacheRead,
     cacheWrite5m: t.cacheWrite['5m'],
@@ -145,6 +148,9 @@ export function buildReport(
 ): Report {
   // Stored in canonical form, so sha256 of the canonical JSON of `inputs` is the identity itself.
   const inputs = canonicalIdentityInputs(IdentityInputs.parse(identityInputs))
+  if (inputs.engineVersion !== ENGINE_VERSION || inputs.schemaVersion !== SCHEMA_VERSION || inputs.engineFingerprint !== ENGINE_FINGERPRINT) {
+    throw new Error('The identity inputs name another engine build than the one writing this report.')
+  }
   const decimals = inputs.reportSettings.displayDecimals
   const report: Report = {
     title: 'Token cost audit report',
@@ -163,6 +169,7 @@ export function buildReport(
       },
       snapshot: summary.snapshot,
       priceLabel: priceLabel(summary.snapshot.date),
+      engineFingerprint: inputs.engineFingerprint,
     },
     coverage: summary.coverage,
     totals: {

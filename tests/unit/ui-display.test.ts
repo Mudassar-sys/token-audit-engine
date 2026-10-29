@@ -1,10 +1,10 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it, vi } from 'vitest'
 import type { AggregateBucket, AuditRow } from '../../src/engine/contracts'
-import { EXCLUDED_HEADING, PARTIAL_TOTAL, UNRESOLVED_VALUE, bucketIsPartial, bucketValue, excludedGroups, loggedValue, rowValueText } from '../../src/ui/audit/display'
+import { COST_TOTALS_TERM, EXCLUDED_HEADING, PARTIAL_TOTAL, ROW_COUNTS_TERM, UNRESOLVED_VALUE, bucketIsPartial, bucketValue, excludedGroups, loggedValue, rowInclusion, rowValueText } from '../../src/ui/audit/display'
 import { RowPageCache } from '../../src/ui/audit/rowPages'
 import { loadFrozenSnapshot, sha256HexOf } from '../../src/ui/pricing'
-import { TEST_META, TEST_SNAPSHOT } from './helpers/testSnapshot'
+import { TEST_META, TEST_SNAPSHOT, makeAuditRow } from './helpers/testSnapshot'
 import { CONTENT_SECURITY_POLICY, SECURITY_HEADERS, cspDirectives } from '../../src/ui/proof/policy'
 
 function bucket(over: Partial<AggregateBucket>): AggregateBucket {
@@ -247,5 +247,39 @@ describe('row page cache', () => {
     await settle()
     expect(cache.rowAt(0)).toBeUndefined()
     expect(cache.size).toBe(1)
+  })
+})
+
+describe('row inclusion text', () => {
+  it('an Unresolved row: row counts yes, cost totals no with the reason', () => {
+    const r = rowInclusion(makeAuditRow({ kind: 'Unresolved' }))
+    expect(r).toEqual({ rowCounts: true, costTotals: false, rowCountsText: 'yes', costTotalsText: 'no, Unresolved' })
+  })
+
+  it('a Not priced row: cost totals no, Not priced', () => {
+    expect(rowInclusion(makeAuditRow({ kind: 'Not priced' })).costTotalsText).toBe('no, Not priced')
+  })
+
+  it('a valid zero row stays in the cost totals', () => {
+    const r = rowInclusion(makeAuditRow({ value: '0' }))
+    expect([r.rowCountsText, r.costTotalsText]).toEqual(['yes', 'yes'])
+  })
+
+  it('an aggregate span is in neither, kept only to reconcile other rows', () => {
+    const r = rowInclusion(makeAuditRow({ counted: false, value: '0.5' }))
+    expect(r).toEqual({
+      rowCounts: false,
+      costTotals: false,
+      rowCountsText: 'no, kept only to reconcile other rows',
+      costTotalsText: 'no, kept only to reconcile other rows',
+    })
+  })
+
+  it('the drawer and the coverage panel use the same two terms', () => {
+    expect(ROW_COUNTS_TERM).toBe('Included in row counts')
+    expect(COST_TOTALS_TERM).toBe('Included in cost totals')
+    const drawer = readFileSync('src/ui/audit/RowDrawer.tsx', 'utf8')
+    expect(drawer).not.toContain('Counted in totals')
+    expect(readFileSync('src/ui/audit/SummaryPanels.tsx', 'utf8')).toContain('Rows included in row counts')
   })
 })

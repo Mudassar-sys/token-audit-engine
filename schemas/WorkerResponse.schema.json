@@ -333,7 +333,7 @@
                   "minimum": -9007199254740991,
                   "maximum": 9007199254740991
                 },
-                "countedRows": {
+                "rowsInRowCounts": {
                   "type": "integer",
                   "minimum": -9007199254740991,
                   "maximum": 9007199254740991
@@ -366,7 +366,7 @@
               },
               "required": [
                 "totalRows",
-                "countedRows",
+                "rowsInRowCounts",
                 "rowsWithProviderUsage",
                 "rowsPriced",
                 "rowsNotPriced",
@@ -1293,7 +1293,7 @@
                     "totals_disagree",
                     "cache_exceeds_input",
                     "aggregate_span",
-                    "overlaps_counted_child",
+                    "overlaps_child_in_row_counts",
                     "aggregate_mismatch",
                     "cost_inconsistent",
                     "malformed",
@@ -1804,7 +1804,7 @@
                       "totals_disagree",
                       "cache_exceeds_input",
                       "aggregate_span",
-                      "overlaps_counted_child",
+                      "overlaps_child_in_row_counts",
                       "aggregate_mismatch",
                       "cost_inconsistent",
                       "malformed",
@@ -2318,7 +2318,7 @@
                     "totals_disagree",
                     "cache_exceeds_input",
                     "aggregate_span",
-                    "overlaps_counted_child",
+                    "overlaps_child_in_row_counts",
                     "aggregate_mismatch",
                     "cost_inconsistent",
                     "malformed",

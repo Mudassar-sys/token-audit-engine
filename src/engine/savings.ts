@@ -41,7 +41,7 @@ export const TIME_BUCKET_ASSUMPTION = 'time-bucket rows have no request sizes: p
 
 /** Reasons a row is left out of every comparison. */
 export const LEFT_OUT = {
-  notCounted: 'not counted (aggregate span)',
+  notCounted: 'not included in row counts (aggregate span kept only to reconcile other rows)',
   malformed: 'malformed',
   unresolved: 'Unresolved',
   noListPrice: 'no list price',
@@ -465,7 +465,7 @@ export function createScenario(req: ScenarioRequest): ScenarioRun {
       )
     }
     if (timeBucketRows > 0) out.push(TIME_BUCKET_ASSUMPTION)
-    if (lvl.rows > 0) out.push('logged charges are compared with list price on their own line and are never counted as savings')
+    if (lvl.rows > 0) out.push('logged charges are compared with list price on their own line and are never included in savings')
     out.push('quality on the baseline and target models is unverified')
     return out
   }

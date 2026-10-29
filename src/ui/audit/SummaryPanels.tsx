@@ -9,11 +9,11 @@ export function CoveragePanel({ summary }: { summary: AuditSummary }) {
   const items: [string, number, string][] = [
     ['Total rows', c.totalRows, 'cov-total'],
     ['Rows with provider-reported usage', c.rowsWithProviderUsage, 'cov-provider-usage'],
-    ['Rows priced', c.rowsPriced, 'cov-priced'],
+    ['Rows priced, included in cost totals', c.rowsPriced, 'cov-priced'],
     ['Rows Not priced', c.rowsNotPriced, 'cov-not-priced'],
     ['Rows Unresolved', c.rowsUnresolved, 'cov-unresolved'],
     ['Malformed rows', c.rowsMalformed, 'cov-malformed'],
-    ['Counted rows', c.countedRows, 'cov-counted'],
+    ['Rows included in row counts', c.rowsInRowCounts, 'cov-row-counts'],
   ]
   return (
     <section className="panel" data-testid="coverage-panel" aria-labelledby={`${ids}-h`}>
@@ -26,9 +26,9 @@ export function CoveragePanel({ summary }: { summary: AuditSummary }) {
           </div>
         ))}
       </dl>
-      {c.totalRows > c.countedRows && (
+      {c.totalRows > c.rowsInRowCounts && (
         <p className="hint">
-          {formatInt(c.totalRows - c.countedRows)} rows are kept only to reconcile other rows (for example aggregate spans) and are not counted.
+          {formatInt(c.totalRows - c.rowsInRowCounts)} rows are kept only to reconcile other rows (for example aggregate spans), so they are not included in row counts or cost totals.
         </p>
       )}
       <ExcludedList excluded={summary.excludedFromCost} />
@@ -36,14 +36,14 @@ export function CoveragePanel({ summary }: { summary: AuditSummary }) {
   )
 }
 
-/** Quantities that are counted but never priced. Part of the coverage panel. */
+/** Quantities that are tallied but never priced. Part of the coverage panel. */
 function ExcludedList({ excluded }: { excluded: Record<string, number> }) {
   const ids = useId()
   const groups = excludedGroups(excluded)
   return (
     <div className="excluded" data-testid="excluded-from-cost" aria-labelledby={`${ids}-h`} role="group">
       <h3 id={`${ids}-h`}>{EXCLUDED_HEADING}</h3>
-      <p>These are counted here and never folded into token cost.</p>
+      <p>These are tallied here and never folded into token cost.</p>
       <dl className="stats">
         {groups.map((g) => (
           <div key={g.label}>
@@ -84,7 +84,7 @@ export function TotalsPanel({ summary }: { summary: AuditSummary }) {
       </dl>
       {t.partial && (
         <p className="partial" data-testid="partial-total">
-          <strong>Partial total.</strong> {t.partialReason ?? 'Some counted rows have no value.'}
+          <strong>Partial total.</strong> {t.partialReason ?? 'Some rows in the row counts are not included in cost totals.'}
         </p>
       )}
     </section>
@@ -119,7 +119,7 @@ export function AggregatesPanel({ summary }: { summary: AuditSummary }) {
           ))}
         </select>
       </div>
-      {summary.aggregates.overflowed && <p className="hint">Some groups hit the key limit; later new keys are counted under "(overflow)".</p>}
+      {summary.aggregates.overflowed && <p className="hint">Some groups hit the key limit; later new keys are grouped under "(overflow)".</p>}
       {buckets.some((b) => bucketValue(b).partial) && (
         <p className="hint">A value marked {PARTIAL_TOTAL} leaves out the group's Not priced and Unresolved rows.</p>
       )}

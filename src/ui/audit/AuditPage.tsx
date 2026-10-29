@@ -1,5 +1,6 @@
 import { useCallback, useId, useMemo, useState } from 'react'
 import { ENGINE_VERSION, SCHEMA_VERSION, type IdentityInputs } from '../../engine/contracts'
+import { ENGINE_FINGERPRINT } from '../../engine/fingerprint.generated'
 import { adapterList, calculationIdentity } from '../../engine/identity'
 import { buildReport } from '../../engine/export'
 import { priceLabel } from '../../engine/pricing'
@@ -62,6 +63,7 @@ function OpenAuditView({ client, audit }: { client: EngineClient; audit: OpenAud
   const identityInputs: IdentityInputs = useMemo(
     () => ({
       inputFileSha256: summary.inputFileSha256,
+      variant: summary.variant,
       mapping: summary.mapping,
       adapters: adapterList(summary.variant),
       schemaVersion: SCHEMA_VERSION,
@@ -71,6 +73,7 @@ function OpenAuditView({ client, audit }: { client: EngineClient; audit: OpenAud
       priceOverrides: [],
       reportSettings: REPORT_SETTINGS,
       engineVersion: ENGINE_VERSION,
+      engineFingerprint: ENGINE_FINGERPRINT,
       // Only when a scenario ran, so audits without one keep the same identity.
       ...(savings.result && savings.inputs ? { durationMap: savings.inputs.durationMap } : {}),
     }),
@@ -160,7 +163,7 @@ function OpenAuditView({ client, audit }: { client: EngineClient; audit: OpenAud
       <section className="panel" aria-labelledby={`${ids}-id`}>
         <h2 id={`${ids}-id`}>Calculation identity</h2>
         <p>
-          SHA-256 of the canonical calculation inputs. The same file, mapping, adapters, snapshot and assumptions always give the same identity. The export time is not part of it.
+          SHA-256 of the canonical calculation inputs. The same file, mapping, adapters, snapshot, assumptions, engine version and engine build fingerprint always give the same identity. The export time is not part of it.
         </p>
         <p>
           <code className="hash" data-testid="calc-identity">

@@ -10,7 +10,7 @@ import { RowNotes, readServiceTier } from './openaiChat'
  * Spans are buffered as compact records and classified in finish(), once the span tree is known.
  */
 
-/** Operations whose usage is a model call and is counted. */
+/** Operations whose usage is a model call, included in row counts. */
 const INFERENCE_OPS = new Set(['chat', 'text_completion', 'generate_content', 'embeddings'])
 /** The embeddings operation is billed for input only, so no output is expected. */
 const EMBEDDINGS_OP = 'embeddings'
@@ -448,23 +448,23 @@ class OtelRun {
       const below = countedBelow.get(s.key) ?? []
       if (s.duplicate) {
         row.unresolvedReason = 'repeats an earlier span with the same traceId and spanId; review needed'
-        row.mapping.push('duplicate span: left unresolved so it is not counted twice')
+        row.mapping.push('duplicate span: left unresolved so its usage is not included twice')
         if (k === 'aggregate') {
           row.counted = false
           row.flags.push('aggregate_span')
         }
       } else if (k === 'inference') {
-        row.mapping.push(`counted: gen_ai.operation.name "${s.op}" is a model call`)
+        row.mapping.push(`included in row counts: gen_ai.operation.name "${s.op}" is a model call`)
       } else if (k === 'fetch') {
         row.unresolvedReason ??= 'fetch_response spans should not report usage; review needed'
         row.mapping.push('fetch_response span with usage: left unresolved')
       } else if (k === 'unnamed') {
         if (below.length > 0) {
-          row.flags.push('overlaps_counted_child')
-          row.unresolvedReason ??= 'overlaps a counted child span; review needed'
-          row.mapping.push(`counted: no gen_ai.operation.name, but ${below.length} counted descendant span(s) also report usage`)
+          row.flags.push('overlaps_child_in_row_counts')
+          row.unresolvedReason ??= 'overlaps a child span that is in the row counts; review needed'
+          row.mapping.push(`included in row counts: no gen_ai.operation.name, but ${below.length} descendant span(s) in the row counts also report usage`)
         } else {
-          row.mapping.push('counted: no gen_ai.operation.name and no counted descendant span reports usage')
+          row.mapping.push('included in row counts: no gen_ai.operation.name and no descendant span in the row counts reports usage')
         }
       } else {
         row.counted = false
@@ -480,8 +480,8 @@ class OtelRun {
         const match = ownIn === sumIn && ownOut === sumOut
         if (!match) row.flags.push('aggregate_mismatch')
         row.mapping.push(
-          `not counted: "${s.op}" span usage aggregates its children. Own input ${ownIn}, output ${ownOut}; ` +
-            `sum of ${parts.length} counted descendant span(s): input ${sumIn}, output ${sumOut}` +
+          `not included in row counts or cost totals: "${s.op}" span usage aggregates its children. Own input ${ownIn}, output ${ownOut}; ` +
+            `sum of ${parts.length} descendant span(s) in the row counts: input ${sumIn}, output ${sumOut}` +
             (match ? ' (match)' : ' (mismatch)') +
             (fetches.length > 0 ? `; ${fetches.length} fetch_response span(s) with usage left out of the sum` : ''),
         )
@@ -542,7 +542,7 @@ function scoreOtlp(sample: RawRecord): { score: number; reason: string } {
 export const otelAdapter: Adapter = {
   source: 'G',
   id: 'otel-genai-spans',
-  version: '1.1.0',
+  version: '1.1.1',
   variants: ['G-otlp', 'G-otlp-jsonl'],
   label: 'OpenTelemetry GenAI spans',
   score: scoreOtlp,

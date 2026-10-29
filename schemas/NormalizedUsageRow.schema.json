@@ -217,7 +217,7 @@
           "totals_disagree",
           "cache_exceeds_input",
           "aggregate_span",
-          "overlaps_counted_child",
+          "overlaps_child_in_row_counts",
           "aggregate_mismatch",
           "cost_inconsistent",
           "malformed",

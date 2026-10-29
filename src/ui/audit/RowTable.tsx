@@ -174,7 +174,7 @@ function RowCells({ row }: { row: AuditRow }) {
     tokenCell(row, 'cacheWrite', sumCacheWrite(t.cacheWrite)),
     tokenCell(row, 'output', t.output),
     rowValueText(row),
-    row.counted ? row.cost.label.kind : `${row.cost.label.kind}, not counted`,
+    row.counted ? row.cost.label.kind : `${row.cost.label.kind}, not in row counts or cost totals`,
   ]
   return (
     <>

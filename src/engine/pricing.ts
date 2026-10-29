@@ -419,7 +419,7 @@ export function createPricingEngine(
       } else {
         // No charge to keep (a gateway's own spend is not a charge): the row cannot be costed.
         label = { kind: 'Unresolved', reason: `${missingText} tokens missing, cost would be understated` }
-        if (est.ok) estimateLabel = { kind: 'Estimated', reason: 'subtotal of the classes present; not counted in totals' }
+        if (est.ok) estimateLabel = { kind: 'Estimated', reason: 'subtotal of the classes present; not included in cost totals' }
         formula = `unresolved: ${label.reason}${est.ok ? `; subtotal of the classes present ${est.formula}` : ''}`
       }
     } else if (rep?.kind === 'charge') {

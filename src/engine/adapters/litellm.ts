@@ -498,7 +498,7 @@ function normalize(record: RawRecord, variant: VariantId): AdapterRow {
     const v = ex(name)
     if (v <= 0) continue
     excluded[name] = v
-    mapping.push(`excluded.${name} = ${x.excluded[name][0]?.path} (counted, not priced)`)
+    mapping.push(`excluded.${name} = ${x.excluded[name][0]?.path} (tallied, not priced)`)
   }
   if (reported) mapping.push('reported gateway estimate = spend')
 
@@ -569,7 +569,7 @@ function scoreSpendLog(sample: RawRecord): { score: number; reason: string } {
 export const litellmAdapter: Adapter = {
   source: 'F',
   id: 'litellm-spend-logs',
-  version: '1.2.0',
+  version: '1.2.1',
   variants: ['F-csv', 'F-json'],
   label: 'LiteLLM spend logs',
   score: scoreSpendLog,

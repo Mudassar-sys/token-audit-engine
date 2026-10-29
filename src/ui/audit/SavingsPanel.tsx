@@ -351,7 +351,7 @@ export function ScenarioView({ result }: { result: ScenarioResult }) {
           <h4>{result.loggedVersusList.label}</h4>
           <p>
             Over {formatInt(result.loggedVersusList.rows)} rows with a Measured charge: logged {result.loggedVersusList.logged.displayUsd}, list price{' '}
-            {result.loggedVersusList.list.displayUsd}, difference {result.loggedVersusList.difference.displayUsd}. This is never counted as savings.
+            {result.loggedVersusList.list.displayUsd}, difference {result.loggedVersusList.difference.displayUsd}. This is never included in savings.
           </p>
         </div>
       )}

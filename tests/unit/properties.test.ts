@@ -222,6 +222,7 @@ describe('savings properties', () => {
 describe('calculation identity of routing assumptions', () => {
   const base: IdentityInputs = {
     inputFileSha256: 'a'.repeat(64),
+    variant: 'A-jsonl',
     mapping: null,
     adapters: [{ id: 'litellm-spend', version: '1.0.0' }],
     schemaVersion: 1,
@@ -231,6 +232,7 @@ describe('calculation identity of routing assumptions', () => {
     priceOverrides: [],
     reportSettings: { displayDecimals: 6, aggregateKeyCap: 5000 },
     engineVersion: '1.0.0',
+    engineFingerprint: 'a'.repeat(64),
   }
   const decimalArb = fc.tuple(fc.nat({ max: 99 }), fc.nat({ max: 999_999 })).map(([i, f]) => (f === 0 ? String(i) : `${i}.${String(f).padStart(6, '0').replace(/0+$/, '')}`))
   /** The same decimal with extra leading and trailing zeros. */

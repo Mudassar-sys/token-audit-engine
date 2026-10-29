@@ -1,7 +1,8 @@
 import Papa from 'papaparse'
 import { describe, expect, it } from 'vitest'
 import { Aggregator } from '../../src/engine/aggregate'
-import { Report, type AuditSummary, type IdentityInputs } from '../../src/engine/contracts'
+import { ENGINE_VERSION, Report, SCHEMA_VERSION, type AuditSummary, type IdentityInputs } from '../../src/engine/contracts'
+import { ENGINE_FINGERPRINT } from '../../src/engine/fingerprint.generated'
 import { auditRowToCsvLine, buildReport, CSV_COLUMNS, CSV_HEADER, csvEscapeCell } from '../../src/engine/export'
 import { calculationIdentity, canonicalJson, sha256Hex } from '../../src/engine/identity'
 import { makeAuditRow, TEST_META } from './helpers/testSnapshot'
@@ -75,15 +76,17 @@ function summaryFor(): AuditSummary {
 
 const inputs: IdentityInputs = {
   inputFileSha256: 'e'.repeat(64),
+  variant: 'A-jsonl',
   mapping: null,
   adapters: [{ id: 'openai-chat', version: '1.0.0' }],
-  schemaVersion: 1,
+  schemaVersion: SCHEMA_VERSION,
   snapshotSha256: TEST_META.sha256,
   baselineModel: 'gpt-4o-mini',
   routing: null,
   priceOverrides: [],
   reportSettings: { displayDecimals: 4, aggregateKeyCap: 5000 },
-  engineVersion: '1.0.0',
+  engineVersion: ENGINE_VERSION,
+  engineFingerprint: ENGINE_FINGERPRINT,
 }
 
 describe('buildReport', () => {
@@ -97,6 +100,9 @@ describe('buildReport', () => {
     expect(report.totals.partial).toBe(true)
     expect(report.provenance.priceLabel).toBe('current list price, snapshot 2026-10-01')
     expect(report.provenance.detection).toEqual({ variant: 'A-jsonl', confidence: 0.9, overridden: false })
+    expect(report.provenance.engineFingerprint).toBe(report.calculationIdentity.inputs.engineFingerprint)
+    expect(report.schemaVersion).toBe(2)
+    expect(report.engineVersion).toBe('1.1.0')
     expect(report.savings).toEqual({ delta: '5', note: 'Estimated' })
     expect(report.calculationIdentity.sha256).toBe(calculationIdentity(inputs))
     expect(JSON.parse(JSON.stringify(report))).toEqual(report)
@@ -126,5 +132,41 @@ describe('buildReport', () => {
     expect(report.calculationIdentity.inputs.routing?.sourceModels).toEqual(['gpt-4o', 'gpt-4o-mini'])
     expect(report.calculationIdentity.inputs.routing?.eligibleShare).toBe('0.5')
     expect(sha256Hex(canonicalJson(report.calculationIdentity.inputs))).toBe(report.calculationIdentity.sha256)
+  })
+})
+
+describe('row inclusion columns in the CSV export', () => {
+  function parsed(row: ReturnType<typeof makeAuditRow>): Record<string, string> {
+    return Papa.parse<Record<string, string>>(CSV_HEADER + auditRowToCsvLine(row), { header: true, skipEmptyLines: true }).data[0]!
+  }
+
+  it('replaces the old counted column with the two explicit columns', () => {
+    expect(CSV_COLUMNS).not.toContain('counted')
+    expect(CSV_COLUMNS).toContain('includedInRowCounts')
+    expect(CSV_COLUMNS).toContain('includedInCostTotals')
+  })
+
+  it('an Unresolved row is in the row counts but not the cost totals', () => {
+    const out = parsed(makeAuditRow({ kind: 'Unresolved' }))
+    expect([out.includedInRowCounts, out.includedInCostTotals]).toEqual(['true', 'false'])
+  })
+
+  it('a valid $0 row is included in the cost totals', () => {
+    const out = parsed(makeAuditRow({ value: '0' }))
+    expect([out.includedInRowCounts, out.includedInCostTotals]).toEqual(['true', 'true'])
+  })
+
+  it('an aggregate span is in neither', () => {
+    const out = parsed(makeAuditRow({ counted: false, value: '0.5' }))
+    expect([out.includedInRowCounts, out.includedInCostTotals]).toEqual(['false', 'false'])
+  })
+})
+
+describe('buildReport build check', () => {
+  it('refuses identity inputs that name another engine build', () => {
+    const s = summaryFor()
+    expect(() => buildReport(s, { ...inputs, engineVersion: '1.0.0' }, '2026-10-29T00:00:00.000Z', null)).toThrow(/another engine build/)
+    expect(() => buildReport(s, { ...inputs, schemaVersion: 1 }, '2026-10-29T00:00:00.000Z', null)).toThrow(/another engine build/)
+    expect(() => buildReport(s, { ...inputs, engineFingerprint: 'f'.repeat(64) }, '2026-10-29T00:00:00.000Z', null)).toThrow(/another engine build/)
   })
 })

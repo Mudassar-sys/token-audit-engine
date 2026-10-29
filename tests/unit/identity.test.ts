@@ -11,6 +11,7 @@ import {
 
 const base: IdentityInputs = {
   inputFileSha256: 'a'.repeat(64),
+  variant: 'A-jsonl',
   mapping: null,
   adapters: [{ id: 'litellm-spend', version: '1.0.0' }],
   schemaVersion: 1,
@@ -20,6 +21,7 @@ const base: IdentityInputs = {
   priceOverrides: [],
   reportSettings: { displayDecimals: 6, aggregateKeyCap: 5000 },
   engineVersion: '1.0.0',
+  engineFingerprint: 'a'.repeat(64),
 }
 
 const mapping = {
@@ -112,6 +114,22 @@ describe('calculationIdentity', () => {
     const hashes = variants.map(calculationIdentity)
     for (const h of hashes) expect(h).not.toBe(a)
     expect(new Set(hashes).size).toBe(hashes.length)
+  })
+
+  it('changes with the engine version, an adapter version, the engine build fingerprint and the variant', () => {
+    const id = calculationIdentity(base)
+    expect(calculationIdentity({ ...base, engineVersion: '1.1.0' })).not.toBe(id)
+    expect(calculationIdentity({ ...base, adapters: [{ id: 'litellm-spend', version: '1.0.1' }] })).not.toBe(id)
+    expect(calculationIdentity({ ...base, engineFingerprint: 'c'.repeat(64) })).not.toBe(id)
+    // Variants that share an adapter parse a file differently, so the variant is an input too.
+    expect(calculationIdentity({ ...base, variant: 'A-json' })).not.toBe(id)
+  })
+
+  it('refuses an identity without a well-formed engine fingerprint', () => {
+    const rest: Partial<IdentityInputs> = { ...base }
+    delete rest.engineFingerprint
+    expect(() => calculationIdentity(rest as IdentityInputs)).toThrow()
+    expect(() => calculationIdentity({ ...base, engineFingerprint: 'not-a-hash' })).toThrow()
   })
 
   it('routing assumptions hash the same whatever the tick order or decimal spelling', () => {

@@ -568,7 +568,7 @@ describe('absent billed token classes', () => {
     expect(out.cost.label).toEqual({ kind: 'Unresolved', reason: 'output tokens missing, cost would be understated' })
     // 1,000 x 0.0000025 + 400 x 0.00000125
     expect(out.cost.estimateUsd).toBe('0.003')
-    expect(out.cost.estimateLabel).toEqual({ kind: 'Estimated', reason: 'subtotal of the classes present; not counted in totals' })
+    expect(out.cost.estimateLabel).toEqual({ kind: 'Estimated', reason: 'subtotal of the classes present; not included in cost totals' })
     expect(out.flags).toContain('billed_class_missing')
     expect(out.flags).not.toContain('estimate_incomplete')
     expect(out.labels.output).toEqual({ kind: 'Not measured', reason: 'absent in source' })

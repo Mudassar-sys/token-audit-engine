@@ -3,7 +3,7 @@ import type { AuditRow, Label } from '../../engine/contracts'
 import type { EngineClient } from '../engineClient'
 import { useFocusTrap } from '../useFocusTrap'
 import { displayUsd, formatInt, rawText } from '../format'
-import { EXCLUDED_HEADING, rowValueText } from './display'
+import { COST_TOTALS_TERM, EXCLUDED_HEADING, ROW_COUNTS_TERM, rowInclusion, rowValueText } from './display'
 
 interface Props {
   client: EngineClient
@@ -97,7 +97,7 @@ function BilledClassMissing({ row }: { row: AuditRow }) {
     <>
       <dt>Subtotal of the classes present</dt>
       <dd data-testid="billed-missing-subtotal">
-        {amount} <span className="badge" data-kind="Estimated">Estimated</span> not counted in totals, {what}. The row is{' '}
+        {amount} <span className="badge" data-kind="Estimated">Estimated</span> not included in cost totals, {what}. The row is{' '}
         <span className="badge" data-kind={row.cost.label.kind}>
           {row.cost.label.kind}
         </span>
@@ -119,6 +119,7 @@ function RowDetails({ row }: { row: AuditRow }) {
     ['output', 'Output (inclusive)', t.output],
     ['reasoning', 'Reasoning (part of output)', t.reasoning],
   ]
+  const inclusion = rowInclusion(row)
   const excluded = Object.entries(row.excluded)
   const rawEntries = Object.entries(row.raw)
   return (
@@ -157,8 +158,10 @@ function RowDetails({ row }: { row: AuditRow }) {
               <dd>{row.unresolvedReason}</dd>
             </>
           )}
-          <dt>Counted in totals</dt>
-          <dd>{row.counted ? 'yes' : 'no, kept only to reconcile other rows'}</dd>
+          <dt>{ROW_COUNTS_TERM}</dt>
+          <dd data-testid="included-row-counts">{inclusion.rowCountsText}</dd>
+          <dt>{COST_TOTALS_TERM}</dt>
+          <dd data-testid="included-cost-totals">{inclusion.costTotalsText}</dd>
         </dl>
         <h4>Formula</h4>
         <p className="formula">{row.cost.formula || 'No formula: the row has no computable estimate.'}</p>

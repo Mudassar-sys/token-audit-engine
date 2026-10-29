@@ -155,7 +155,7 @@ class ReasonCounts {
 export class Aggregator {
   private readonly cov: Coverage = {
     totalRows: 0,
-    countedRows: 0,
+    rowsInRowCounts: 0,
     rowsWithProviderUsage: 0,
     rowsPriced: 0,
     rowsNotPriced: 0,
@@ -206,7 +206,7 @@ export class Aggregator {
     if (malformed) c.rowsMalformed++
     if (!row.counted) return
 
-    c.countedRows++
+    c.rowsInRowCounts++
     if (!malformed) c.rowsWithProviderUsage++
     const kind = row.cost.label.kind
     const femto = row.cost.valueUsd === null ? null : usdToFemto(row.cost.valueUsd)

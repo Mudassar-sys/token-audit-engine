@@ -43,7 +43,7 @@ describe('Aggregator', () => {
     const s = agg.summary()
     expect(s.coverage).toEqual({
       totalRows: 8,
-      countedRows: 7,
+      rowsInRowCounts: 7,
       rowsWithProviderUsage: 6,
       rowsPriced: 3,
       rowsNotPriced: 3,

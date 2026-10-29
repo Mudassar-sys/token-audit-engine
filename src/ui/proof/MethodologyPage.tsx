@@ -11,7 +11,7 @@ export function MethodologyPage() {
       <p>
         Every row is reduced to the same classes: uncached input, cache read, cache write (5 minutes, 1 hour, 30 minutes or 12 hours), and output.
         Reasoning tokens are a part of output and are never added on top. Audio, image and video tokens, web search requests, tool sessions and storage are
-        counted and shown, but never folded into token cost.
+        tallied and shown, but never folded into token cost.
       </p>
 
       <h3>Rules per source</h3>
@@ -40,7 +40,7 @@ export function MethodologyPage() {
           gateway's own calculation, shown beside the snapshot estimate.
         </li>
         <li>
-          <strong>OpenTelemetry spans.</strong> Inference spans are counted. Agent and workflow spans with usage are kept only to reconcile their children. A span whose
+          <strong>OpenTelemetry spans.</strong> Inference spans are included in row counts, and in cost totals when they are priced. Agent and workflow spans with usage are kept only to reconcile their children. A span whose
           cache tokens exceed its input is Unresolved.
         </li>
         <li>
@@ -81,16 +81,33 @@ export function MethodologyPage() {
       <p>
         A call is billed for input, and for output unless it is an embedding. When the source leaves one of these out, the row is never read as zero tokens. A row
         with a logged charge keeps the charge as its value, and its token estimate is marked incomplete. Any other row is Unresolved: it shows the subtotal of the
-        classes present, labelled Estimated, and that subtotal is not counted in totals. A count of 0 that the source states is measured, so it stays a valid
+        classes present, labelled Estimated, and that subtotal is not included in cost totals. A count of 0 that the source states is measured, so it stays a valid
         zero.
       </p>
 
       <h3>Savings modeller</h3>
       <p>
         The modeller reads every stored row in the worker and reprices it through the same row pricer the import used, with the audit's own snapshot. The list
-        price of each row is that row priced again without its logged charge. Rows that are not counted, malformed, Unresolved, Not priced or with an incomplete
-        token estimate are left out of both sides and listed with their reason. Logged charges are compared with list price on their own line and never count as
+        price of each row is that row priced again without its logged charge. Rows that are not included in row counts, malformed, Unresolved, Not priced or with an incomplete
+        token estimate are left out of both sides and listed with their reason. Logged charges are compared with list price on their own line and are never included in
         savings.
+      </p>
+
+      <h3>Row counts and cost totals</h3>
+      <p>
+        Two separate questions, with one meaning each wherever they appear. Included in row counts: every row except an aggregate kept only to reconcile other
+        rows, such as an agent span whose usage sums its children. Included in cost totals: a row in the row counts whose value is not empty, so a valid $0 is
+        included and a Not priced or Unresolved row is not. The row drawer shows both, and the CSV export has a column for each.
+      </p>
+
+      <h3>Calculation identity</h3>
+      <p>
+        The identity is a SHA-256 over the canonical inputs of an audit: the input file's SHA-256, the variant it was read as, the column mapping, the adapter ids
+        and versions, the export schema version, the pricing snapshot's SHA-256, the savings baseline, routing and duration assumptions, any price overrides, the report settings, the
+        engine version, and the engine build fingerprint. The fingerprint is a SHA-256 of the engine, adapter and worker source files and the locked versions of
+        the parsing, hashing and validation libraries, made at build time with the files in sorted path order and line endings set to LF, so any change to
+        calculation code changes the identity even if a version number is not raised. The
+        export time is not part of it.
       </p>
 
       <h3>Exports</h3>
@@ -103,6 +120,11 @@ export function MethodologyPage() {
       <p>
         The JSON report holds the summary, the capped breakdowns and the savings result. It never includes rows, so its size does not grow with the number of
         rows.
+      </p>
+      <p>
+        Export schema version 2: the CSV column counted is replaced by includedInRowCounts and includedInCostTotals, the JSON coverage field countedRows is now
+        rowsInRowCounts, the row flag overlaps_counted_child is now overlaps_child_in_row_counts, and the report and identity carry the variant and the engine
+        build fingerprint.
       </p>
 
       <h3>Pricing snapshot</h3>

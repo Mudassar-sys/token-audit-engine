@@ -31,6 +31,25 @@
             "inputFileSha256": {
               "type": "string"
             },
+            "variant": {
+              "type": "string",
+              "enum": [
+                "A-json",
+                "A-jsonl",
+                "B-json",
+                "B-jsonl",
+                "C-page",
+                "D-json",
+                "D-jsonl",
+                "E-json",
+                "E-jsonl",
+                "F-csv",
+                "F-json",
+                "G-otlp",
+                "G-otlp-jsonl",
+                "H-csv"
+              ]
+            },
             "mapping": {
               "anyOf": [
                 {
@@ -291,6 +310,10 @@
             "engineVersion": {
               "type": "string"
             },
+            "engineFingerprint": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
             "durationMap": {
               "anyOf": [
                 {
@@ -349,6 +372,7 @@
           },
           "required": [
             "inputFileSha256",
+            "variant",
             "mapping",
             "adapters",
             "schemaVersion",
@@ -357,7 +381,8 @@
             "routing",
             "priceOverrides",
             "reportSettings",
-            "engineVersion"
+            "engineVersion",
+            "engineFingerprint"
           ],
           "additionalProperties": false
         }
@@ -471,6 +496,10 @@
         },
         "priceLabel": {
           "type": "string"
+        },
+        "engineFingerprint": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
         }
       },
       "required": [
@@ -479,7 +508,8 @@
         "variant",
         "detection",
         "snapshot",
-        "priceLabel"
+        "priceLabel",
+        "engineFingerprint"
       ],
       "additionalProperties": false
     },
@@ -491,7 +521,7 @@
           "minimum": -9007199254740991,
           "maximum": 9007199254740991
         },
-        "countedRows": {
+        "rowsInRowCounts": {
           "type": "integer",
           "minimum": -9007199254740991,
           "maximum": 9007199254740991
@@ -524,7 +554,7 @@
       },
       "required": [
         "totalRows",
-        "countedRows",
+        "rowsInRowCounts",
         "rowsWithProviderUsage",
         "rowsPriced",
         "rowsNotPriced",

@@ -13,6 +13,31 @@ export function rowValueText(row: Pick<AuditRow, 'cost'>): string {
   return displayUsd(row.cost.valueUsd)
 }
 
+export const ROW_COUNTS_TERM = 'Included in row counts'
+export const COST_TOTALS_TERM = 'Included in cost totals'
+export const RECONCILE_ONLY = 'kept only to reconcile other rows'
+
+/**
+ * The two inclusion questions, each with one meaning everywhere in the app and the exports.
+ * Row counts: every row except aggregates kept only to reconcile other rows.
+ * Cost totals: a row in the row counts whose value is not null, so a valid $0 is included.
+ */
+export function rowInclusion(row: Pick<AuditRow, 'counted' | 'cost'>): {
+  rowCounts: boolean
+  costTotals: boolean
+  rowCountsText: string
+  costTotalsText: string
+} {
+  const costTotals = row.counted && row.cost.valueUsd !== null
+  const why = !row.counted ? RECONCILE_ONLY : row.cost.label.kind
+  return {
+    rowCounts: row.counted,
+    costTotals,
+    rowCountsText: row.counted ? 'yes' : `no, ${RECONCILE_ONLY}`,
+    costTotalsText: costTotals ? 'yes' : `no, ${why}`,
+  }
+}
+
 /** True when a breakdown bucket's value leaves out Not priced or Unresolved rows. */
 export function bucketIsPartial(b: AggregateBucket): boolean {
   return b.partial || b.rowsNotPriced + b.rowsUnresolved > 0

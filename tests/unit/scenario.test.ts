@@ -172,7 +172,7 @@ describe('same model with neutral assumptions gives zero savings', () => {
     expect(r.listOriginal.exactUsd).toBe('0.009115')
     expect(r.routing!.eligibleRows).toBe(2)
     expectZero(r)
-    expect(r.assumptions).toContain('logged charges are compared with list price on their own line and are never counted as savings')
+    expect(r.assumptions).toContain('logged charges are compared with list price on their own line and are never included in savings')
   })
 
   it('a share below one, retries of zero and a calibration pass rate of one change nothing on the same model', () => {
@@ -368,7 +368,7 @@ describe('rows left out', () => {
       { reason: LEFT_OUT.noListPrice, rows: 2 },
       { reason: LEFT_OUT.estimateIncomplete, rows: 1 },
     ])
-    expect(r.rowsLeftOut.map((x) => x.reason)).toEqual(['not counted (aggregate span)', 'malformed', 'Unresolved', 'no list price', 'token estimate incomplete'])
+    expect(r.rowsLeftOut.map((x) => x.reason)).toEqual(['not included in row counts (aggregate span kept only to reconcile other rows)', 'malformed', 'Unresolved', 'no list price', 'token estimate incomplete'])
     expect(r.listOriginal.exactUsd).toBe('0.0003')
     // The Measured charge rows left out do not appear on the logged versus list line either.
     expect(r.loggedVersusList).toBeNull()

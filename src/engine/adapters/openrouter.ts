@@ -118,7 +118,7 @@ function scoreOpenRouter(sample: RawRecord): { score: number; reason: string } {
 export const openrouterAdapter: Adapter = {
   source: 'E',
   id: 'openrouter-chat',
-  version: '1.0.0',
+  version: '1.0.1',
   variants: ['E-json', 'E-jsonl'],
   label: 'OpenRouter responses with usage accounting',
   score: scoreOpenRouter,

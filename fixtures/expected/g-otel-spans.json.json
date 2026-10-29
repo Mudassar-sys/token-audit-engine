@@ -100,9 +100,9 @@
     ],
     "excluded": {},
     "flags": [
-      "overlaps_counted_child"
+      "overlaps_child_in_row_counts"
     ],
-    "unresolvedReason": "overlaps a counted child span; review needed",
+    "unresolvedReason": "overlaps a child span that is in the row counts; review needed",
     "counted": true,
     "requests": 1,
     "tierStated": null,

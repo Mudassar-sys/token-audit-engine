@@ -330,7 +330,7 @@ const CHAT_OPTIONS: ChatUsageOptions = {
 export const openaiChatAdapter: Adapter = {
   source: 'A',
   id: 'openai-chat-completions',
-  version: '1.0.0',
+  version: '1.0.1',
   variants: ['A-json', 'A-jsonl'],
   label: 'OpenAI Chat Completions responses',
   score: scoreChat,
