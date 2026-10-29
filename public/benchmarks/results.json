@@ -1,13 +1,15 @@
 {
   "results": [
     {
-      "recordedAt": "2026-10-29T14:51:21.398Z",
+      "recordedAt": "2026-10-29T16:58:23.090Z",
       "engineVersion": "1.0.0",
       "cpuCores": 8,
       "memoryClass": 16,
       "browser": "Google Chrome 156.0.8078.73",
       "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.8078.4 Safari/537.36",
       "crossOriginIsolated": true,
+      "seed": 20261029,
+      "fileSha256": "1cfc91ee02d5a15353c1477721e505cdf9165507177eaa2d4f124a41b31e862b",
       "fileBytes": 209715200,
       "rows": 402191,
       "columns": 29,
@@ -18,21 +20,39 @@
         "anthropic": 108692,
         "gemini": 36224
       },
-      "sampleGenerationMs": 3727,
-      "totalMs": 47489,
-      "rowsPerSecond": 8469,
+      "sampleGenerationMs": 8508,
+      "snapshotFile": "2026-10-29-d15094df.json",
+      "snapshotSha256": "d15094dfb82e25fed51ffe7a9fb935f1058cff7851c8f5a9af62cb1a4903bb4c",
+      "totalMs": 30972,
+      "rowsPerSecond": 12986,
       "importedRows": 402191,
-      "peakMemory": 77045316,
-      "cancelMs": 53,
-      "partialDeleteMs": 51,
-      "cancelTotalMs": 309,
+      "expectedNotPriced": 8026,
+      "expectedUnresolved": 3663,
+      "rowsNotPriced": 8026,
+      "rowsUnresolved": 3663,
+      "peakMemory": 77030671,
+      "cancelMs": 20,
+      "partialDeleteMs": 32,
+      "cancelTotalMs": 173,
       "cancelAtBytes": 104857600,
       "partialRowsDeleted": true,
+      "rowsAfterCancel": 0,
       "longTasks": {
         "count": 0,
         "totalMs": 0,
         "maxMs": 0
       },
+      "interactions": {
+        "count": 9,
+        "maxMs": 32
+      },
+      "scenarioMs": 23930,
+      "scenarioRows": 402191,
+      "exportPath": "stream",
+      "exportBytes": 343112636,
+      "exportMs": 13821,
+      "exportPeakMemory": 44058462,
+      "exportedRows": 402191,
       "site": "https://token-audit-engine.vercel.app",
       "profile": "on-disk browser profile"
     }
