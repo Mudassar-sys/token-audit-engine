@@ -3,6 +3,7 @@ import type { AuditRow, Label } from '../../engine/contracts'
 import type { EngineClient } from '../engineClient'
 import { useFocusTrap } from '../useFocusTrap'
 import { displayUsd, formatInt, rawText } from '../format'
+import { EXCLUDED_HEADING, rowValueText } from './display'
 
 interface Props {
   client: EngineClient
@@ -90,7 +91,7 @@ function RowDetails({ row }: { row: AuditRow }) {
         <dl className="kv">
           <dt>Row value</dt>
           <dd>
-            <strong>{row.cost.valueUsd === null ? 'no value' : displayUsd(row.cost.valueUsd)}</strong>
+            <strong data-testid="row-value">{rowValueText(row)}</strong>
             {row.cost.valueUsd !== null && <span className="exact"> exact {row.cost.valueUsd}</span>} <LabelText label={row.cost.label} />
           </dd>
           <dt>Tokens times snapshot rate</dt>
@@ -195,7 +196,7 @@ function RowDetails({ row }: { row: AuditRow }) {
         </p>
         {excluded.length > 0 && (
           <p>
-            Counted but not priced: {excluded.map(([k, v]) => `${k} ${formatInt(v)}`).join(', ')}.
+            {EXCLUDED_HEADING}: {excluded.map(([k, v]) => `${k} ${formatInt(v)}`).join(', ')}.
           </p>
         )}
       </section>

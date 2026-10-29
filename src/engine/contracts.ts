@@ -281,9 +281,12 @@ export const AggregateBucket = z.object({
     output: z.number(),
     reasoning: z.number(),
   }),
-  valueUsd: DecimalString,
+  /** Sum of priced rows. null when no row in the bucket is priced (shown as Not priced, never as 0). */
+  valueUsd: DecimalString.nullable(),
   rowsNotPriced: z.number().int(),
   rowsUnresolved: z.number().int(),
+  /** true when the bucket leaves out Not priced or Unresolved rows, so its value is a partial total. */
+  partial: z.boolean(),
 })
 export type AggregateBucket = z.infer<typeof AggregateBucket>
 

@@ -157,7 +157,7 @@ describe('zero cases', () => {
   })
 
   it('Not priced: an unknown model has a null value, never "0"', () => {
-    const out = price(row({ modelLogged: 'acme-unlisted-model-x', tokens: { uncachedInput: 100, output: 10 } }))
+    const out = price(row({ modelLogged: 'unlisted-model-x', tokens: { uncachedInput: 100, output: 10 } }))
     expect(out.cost.valueUsd).toBeNull()
     expect(out.cost.valueUsd).not.toBe('0')
     expect(out.cost.estimateUsd).toBeNull()
@@ -167,7 +167,7 @@ describe('zero cases', () => {
   })
 
   it('Not priced even with gateway spend above zero when the model is unknown', () => {
-    const out = price(row({ variant: 'F-csv', modelLogged: 'acme-unlisted-model-x', tokens: { uncachedInput: 100 }, reported: { amountUsd: '0.01', field: 'spend', kind: 'gateway_estimate' } }))
+    const out = price(row({ variant: 'F-csv', modelLogged: 'unlisted-model-x', tokens: { uncachedInput: 100 }, reported: { amountUsd: '0.01', field: 'spend', kind: 'gateway_estimate' } }))
     expect(out.cost.valueUsd).toBeNull()
     expect(out.cost.label.kind).toBe('Not priced')
   })
@@ -291,6 +291,14 @@ describe('tiers', () => {
       kind: 'Not priced',
       reason: 'scale tier has no rate in the snapshot',
     })
+    const scale = price(row({ tierStated: null, raw: { service_tier: 'scale' }, tokens: { uncachedInput: 5 } }))
+    expect(scale.flags).not.toContain('tier_assumed')
+    expect(scale.labels.tier).toEqual({ kind: 'Measured', reason: 'stated in source: scale; the snapshot has no rate for this tier' })
+    expect(scale.labels.tier?.reason).not.toContain('assumed')
+    expect(scale.cost.estimateLabel.reason).not.toContain('tier assumed')
+    const scaleNested = price(row({ tierStated: null, raw: { 'response.service_tier': 'Scale' }, tokens: { uncachedInput: 5 } }))
+    expect(scaleNested.flags).not.toContain('tier_assumed')
+    expect(scaleNested.labels.tier?.reason).toMatch(/^stated in source: scale/)
     const fast = price(row({ modelLogged: 'claude-sonnet-4-5-20250929', raw: { 'usage.speed': 'fast' }, tokens: { uncachedInput: 5 } }))
     expect(fast.cost.label.kind).toBe('Not priced')
     const geo = price(row({ modelLogged: 'claude-sonnet-4-5-20250929', raw: { 'usage.inference_geo': 'us' }, tokens: { uncachedInput: 5 } }))
@@ -390,6 +398,35 @@ describe('long context and time buckets', () => {
     expect(inputOnly.cost.valueUsd).toBe('1')
   })
 
+  it('excluded image, audio and video input tokens count toward the threshold but are not priced', () => {
+    // Provider prompt 275,000 with 5,000 image tokens: the adapter leaves 270,000 priced input.
+    const out = price(row({
+      modelLogged: 'gpt-6.1-sol',
+      excluded: { input_image: 5000 },
+      mapping: ['uncachedInput = usage.prompt_tokens - prompt_tokens_details.image_tokens (excluded)'],
+      tokens: { uncachedInput: 270000, output: 100 },
+    }))
+    expect(out.flags).toContain('long_context_applied')
+    expect(out.cost.appliedRates.map((a) => [a.tokenClass, a.tokens, a.rateKey])).toEqual([
+      ['uncachedInput', 270000, 'input_cost_per_token_above_272k_tokens'],
+      ['output', 100, 'output_cost_per_token_above_272k_tokens'],
+    ])
+    // 270000 x 0.000004 + 100 x 0.000015; the 5,000 image tokens are not priced
+    expect(out.cost.valueUsd).toBe('1.0815')
+    expect(out.cost.formula).toContain('contextSize = 270,000 priced input + 5,000 excluded.input_image = 275,000 tokens')
+    expect(out.mapping.at(-1)).toMatch(/^contextSize = .*threshold only and are not priced\)$/)
+    expect(out.cost.estimateLabel.reason).toContain('275,000 in this request, including 5,000 excluded image, audio or video input tokens')
+
+    const audioVideo = price(row({ modelLogged: 'gpt-6.1-sol', excluded: { input_audio: 1500, input_video: 1000, output_audio: 900000 }, tokens: { uncachedInput: 270000 } }))
+    expect(audioVideo.flags).toContain('long_context_applied')
+    expect(audioVideo.cost.valueUsd).toBe('1.08')
+    // Excluded output modalities never count as prompt size.
+    const outputOnly = price(row({ modelLogged: 'gpt-6.1-sol', excluded: { output_image: 900000 }, tokens: { uncachedInput: 270000 } }))
+    expect(outputOnly.flags).not.toContain('long_context_applied')
+    expect(outputOnly.cost.valueUsd).toBe('0.54')
+    expect(outputOnly.mapping).toEqual([])
+  })
+
   it('time bucket rows use base rates with a label and flag', () => {
     const out = price(row({
       variant: 'C-page',
@@ -421,6 +458,47 @@ describe('reasoning, charges, labels', () => {
     ])
   })
 
+  it('a stated tier with measured reasoning uses the tier output rate when the base reasoning and output rates are equal', () => {
+    const r = { modelLogged: 'gemini/gemini-2.5-flash', provider: 'gemini', variant: 'H-csv' as const }
+    expect(snapshot.models['gemini/gemini-2.5-flash']?.rates.output_cost_per_reasoning_token_batches).toBeUndefined()
+    const batch = price(row({ ...r, tierStated: 'batch', tokens: { uncachedInput: 1000, output: 1000, reasoning: 400 } }))
+    expect(batch.cost.label.kind).toBe('Estimated')
+    expect(batch.cost.appliedRates.map((a) => [a.tokenClass, a.tokens, a.rateKey])).toEqual([
+      ['uncachedInput', 1000, 'input_cost_per_token_batches'],
+      ['output', 600, 'output_cost_per_token_batches'],
+      ['reasoning', 400, 'output_cost_per_token_batches'],
+    ])
+    // Same as the row with reasoning not measured: 1000 x 0.00000015 + 1000 x 0.00000125
+    expect(batch.cost.valueUsd).toBe('0.0014')
+    expect(price(row({ ...r, tierStated: 'batch', tokens: { uncachedInput: 1000, output: 1000 } })).cost.valueUsd).toBe('0.0014')
+    expect(batch.cost.estimateLabel.reason).toContain('reasoning tokens at the output rate')
+    for (const tier of ['flex', 'priority'] as const) {
+      expect(price(row({ ...r, tierStated: tier, tokens: { uncachedInput: 1000, output: 1000, reasoning: 400 } })).cost.label.kind).toBe('Estimated')
+    }
+  })
+
+  it('a stated tier uses the tiered reasoning key when present', () => {
+    const e = createPricingEngine(snapshot, meta, [{ model: 'gemini-2.5-flash', rateKey: 'output_cost_per_reasoning_token_flex', rateUsdPerToken: '0.000002' }])
+    const out = e.price(row({ modelLogged: 'gemini-2.5-flash', provider: 'google', tierStated: 'flex', tokens: { output: 1000, reasoning: 400 } }))
+    expect(out.cost.appliedRates.map((a) => [a.tokenClass, a.rateKey])).toEqual([
+      ['output', 'output_cost_per_token_flex'],
+      ['reasoning', 'output_cost_per_reasoning_token_flex'],
+    ])
+    // 600 x 0.00000125 + 400 x 0.000002
+    expect(out.cost.valueUsd).toBe('0.00155')
+  })
+
+  it('a stated tier with a distinct base reasoning rate and no tiered reasoning key is Not priced and names the key', () => {
+    const e = createPricingEngine(snapshot, meta, [{ model: 'gemini-2.5-flash', rateKey: 'output_cost_per_reasoning_token', rateUsdPerToken: '0.000003' }])
+    const out = e.price(row({ modelLogged: 'gemini-2.5-flash', provider: 'google', tierStated: 'flex', tokens: { output: 1000, reasoning: 400 } }))
+    expect(out.cost.valueUsd).toBeNull()
+    expect(out.cost.label.kind).toBe('Not priced')
+    expect(out.cost.label.reason).toContain('missing rate key output_cost_per_reasoning_token_flex')
+    // Standard tier still uses the base reasoning rate.
+    const std = e.price(row({ modelLogged: 'gemini-2.5-flash', provider: 'google', tokens: { output: 1000, reasoning: 400 } }))
+    expect(std.cost.appliedRates.find((a) => a.tokenClass === 'reasoning')?.rateKey).toBe('output_cost_per_reasoning_token')
+  })
+
   it('a model without a reasoning rate prices all output at the output rate', () => {
     const out = price(row({ tokens: { output: 1186, reasoning: 1024 } }))
     expect(out.cost.appliedRates).toHaveLength(1)
@@ -437,7 +515,7 @@ describe('reasoning, charges, labels', () => {
   })
 
   it('a charge on an unknown model is still the value', () => {
-    const out = price(row({ variant: 'E-json', modelLogged: 'acme/unknown', tokens: { uncachedInput: 1 }, reported: { amountUsd: '0.00014', field: 'usage.cost', kind: 'charge' } }))
+    const out = price(row({ variant: 'E-json', modelLogged: 'unlisted/unknown', tokens: { uncachedInput: 1 }, reported: { amountUsd: '0.00014', field: 'usage.cost', kind: 'charge' } }))
     expect(out.cost.valueUsd).toBe('0.00014')
     expect(out.cost.label.kind).toBe('Measured charge')
     expect(out.cost.estimateLabel.kind).toBe('Not priced')

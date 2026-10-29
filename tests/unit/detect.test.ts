@@ -70,6 +70,26 @@ describe('detectFromSample on fixtures', () => {
   })
 })
 
+/** OpenAI embeddings responses and usage pages: not a supported variant, so never priced as chat or completions usage. */
+function embeddingCases(): [string, string, string][] {
+  const response = (i: number) => ({ object: 'list', data: [{ object: 'embedding', index: 0, embedding: [0.01 * i, 0.02] }], model: 'text-embedding-3-small', usage: { prompt_tokens: 8000 + i, total_tokens: 8000 + i } })
+  const lines = [1, 2, 3].map((i) => JSON.stringify(response(i))).join('\n') + '\n'
+  const bare = [1, 2].map((i) => JSON.stringify({ model: 'text-embedding-3-small', usage: { prompt_tokens: 10 * i, total_tokens: 10 * i } })).join('\n') + '\n'
+  const page = {
+    object: 'page',
+    data: [{ object: 'bucket', start_time: 1792800000, end_time: 1792886400, results: [{ object: 'organization.usage.embeddings.result', input_tokens: 16000, num_model_requests: 2, model: 'text-embedding-3-small' }] }],
+    has_more: false,
+  }
+  return [
+    ['embeddings responses as JSONL', lines, 'embeddings.jsonl'],
+    ['one embeddings response on one line', JSON.stringify(response(1)), 'embedding.json'],
+    ['one pretty-printed embeddings response', JSON.stringify(response(1), null, 2), 'embedding.json'],
+    ['a JSON array of embeddings responses', JSON.stringify([response(1), response(2)]), 'embeddings.json'],
+    ['prompt-only usage lines without completion_tokens', bare, 'usage.jsonl'],
+    ['an embeddings Usage API page', JSON.stringify(page, null, 2), 'usage-embeddings.json'],
+  ]
+}
+
 describe('unsupported input', () => {
   const cases: [string, string, string][] = [
     ['empty file', '', 'empty.json'],
@@ -81,6 +101,7 @@ describe('unsupported input', () => {
     ['one column CSV', 'value\n1\n2\n', 'one.csv'],
     ['broken JSON', '[{"a": 1,, }]', 'broken.json'],
     ['a JSON number', '42', 'n.json'],
+    ...embeddingCases(),
   ]
   for (const [name, text, file] of cases) {
     it(`${name} is not supported yet`, () => {

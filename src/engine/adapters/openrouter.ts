@@ -1,7 +1,7 @@
 import type { CacheDuration, ReportedAmount, VariantId } from '../contracts'
 import { decimalToScaled, loggedNumberToDecimal, scaledToDecimal } from '../money'
 import type { Adapter, AdapterRow, RawRecord } from './types'
-import { excludedOf, hasChatUsage, invalidRow, normalizeChatCompletion, rejectNonJson, routingHints } from './openaiChat'
+import { excludedOf, hasChatUsage, invalidRow, normalizeChatCompletion, notChatCompletion, rejectNonJson, routingHints } from './openaiChat'
 import type { ChatUsageOptions, FieldReader, RowNotes } from './openaiChat'
 
 /**
@@ -51,17 +51,25 @@ function money(r: FieldReader, notes: RowNotes, path: string): string | null {
 /**
  * The charge for the request. With BYOK, usage.cost is only the router fee and the provider bills
  * the inference itself, reported in cost_details.upstream_inference_cost.
+ * upstream_inference_cost is filled only for BYOK requests (0 or null otherwise), and the documented
+ * usage example shows it without is_byok, so a positive upstream cost with is_byok absent is read
+ * as BYOK too.
  */
 function reportedCharge(r: FieldReader, notes: RowNotes): ReportedAmount | null {
   const cost = money(r, notes, 'usage.cost')
   const byok = r.get('usage.is_byok')
   const upstream = money(r, notes, 'usage.cost_details.upstream_inference_cost')
   for (const p of ['upstream_inference_prompt_cost', 'upstream_inference_completions_cost', 'server_tool_cost']) r.get(`usage.cost_details.${p}`)
-  if (byok === true) {
+  const upstreamPositive = upstream !== null && decimalToScaled(upstream, 24) > 0n
+  const byokLike = (byok === undefined || byok === null) && upstreamPositive
+  if (byok === true || byokLike) {
     if (upstream !== null) {
       const field = cost !== null ? 'usage.cost + usage.cost_details.upstream_inference_cost' : 'usage.cost_details.upstream_inference_cost'
       const amountUsd = cost !== null ? addDecimal(cost, upstream) : upstream
-      notes.mapping.push(`reported = ${field} (${cost ?? 'absent'} + ${upstream}) = ${amountUsd}, BYOK request`)
+      const why = byokLike
+        ? 'usage.is_byok absent; upstream_inference_cost is above 0 and is filled only for BYOK requests, so it is added'
+        : 'BYOK request'
+      notes.mapping.push(`reported = ${field} (${cost ?? 'absent'} + ${upstream}) = ${amountUsd}, ${why}`)
       return { amountUsd, field, kind: 'charge' }
     }
     notes.unresolved('BYOK request without usage.cost_details.upstream_inference_cost; the provider charge is not in the log')
@@ -99,6 +107,8 @@ function scoreOpenRouter(sample: RawRecord): { score: number; reason: string } {
   if (sample.kind !== 'json') return { score: 0, reason: 'not a JSON record' }
   const v = sample.value
   if (!hasChatUsage(v)) return { score: 0, reason: 'no usage.prompt_tokens or usage.completion_tokens' }
+  const notChat = notChatCompletion(v)
+  if (notChat) return { score: 0, reason: notChat }
   const hints = routingHints(v)
   if (hints.includes('usage.cost')) return { score: 0.95, reason: `chat completion usage with ${hints.join(', ')}` }
   if (hints.length > 0) return { score: 0.85, reason: `chat completion usage with ${hints.join(', ')}` }

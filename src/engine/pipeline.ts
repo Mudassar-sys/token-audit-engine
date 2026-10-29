@@ -19,6 +19,31 @@ import { raceAbort } from './stream/reader'
 /** Rows of the file-fact scan before the main pass. */
 export const FILE_FACT_SAMPLE = 5000
 export const PROGRESS_INTERVAL_MS = 100
+/** Longest stretch of end-of-file pricing between turns of the event loop. */
+export const YIELD_EVERY_MS = 8
+
+/** Let queued tasks (such as a cancel message to the worker) run before continuing. */
+export function yieldToEventLoop(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, 0))
+}
+
+/**
+ * Iterate rows once. For an array, each slot is cleared as it is read, so rows already
+ * priced and written can be collected while the rest are still waiting.
+ */
+export function* drainRows(rows: Iterable<AdapterRow>): Generator<AdapterRow> {
+  if (!Array.isArray(rows)) {
+    yield* rows
+    return
+  }
+  const list = rows as (AdapterRow | undefined)[]
+  for (let i = 0; i < list.length; i++) {
+    const r = list[i]
+    list[i] = undefined
+    if (r) yield r
+  }
+  list.length = 0
+}
 
 export interface RowSink {
   write(rows: AuditRow[]): Promise<void>
@@ -165,29 +190,26 @@ export async function runImport(o: ImportOptions): Promise<AuditSummary> {
       })
     }
 
-    const take = (rows: AdapterRow[]) => {
-      for (const r of rows) {
-        const row = pricing.price({ ...r, rowIndex: rowIndex++ })
-        agg.add(row)
-        buffer.push(row)
-      }
+    /** Price one adapter row, add it to the aggregates and buffer it for the next sink batch. */
+    const addRow = (r: AdapterRow) => {
+      const row = pricing.price({ ...r, rowIndex: rowIndex++ })
+      agg.add(row)
+      buffer.push(row)
     }
 
-    const pushRecord = (rec: RawRecord) => {
-      let rows: AdapterRow[]
+    /** Hand the buffered rows to the write queue as one batch (waits while the queue is full). */
+    const flushBatch = async () => {
+      if (buffer.length === 0) return
+      const batch = buffer
+      buffer = []
+      await queue.push(batch, signal)
+    }
+
+    const pushRecord = (rec: RawRecord): AdapterRow[] => {
       try {
-        rows = run.push(rec)
+        return run.push(rec)
       } catch (err) {
-        rows = [malformedRow(o.variant, `adapter error: ${err instanceof Error ? err.message : String(err)}`, rec)]
-      }
-      take(rows)
-    }
-
-    const flushFull = async () => {
-      while (buffer.length >= batchSize) {
-        const batch = buffer.slice(0, batchSize)
-        buffer = buffer.slice(batchSize)
-        await queue.push(batch, signal)
+        return [malformedRow(o.variant, `adapter error: ${err instanceof Error ? err.message : String(err)}`, rec)]
       }
     }
 
@@ -207,20 +229,32 @@ export async function runImport(o: ImportOptions): Promise<AuditSummary> {
       },
       async (records) => {
         for (const rec of records) {
-          pushRecord(rec)
-          if (buffer.length >= batchSize) await flushFull()
+          for (const r of pushRecord(rec)) {
+            addRow(r)
+            if (buffer.length >= batchSize) await flushBatch()
+          }
         }
         if (signal.aborted) throw abortError()
       },
     )
 
-    take(run.finish())
-    await flushFull()
-    if (buffer.length) {
-      const rest = buffer
-      buffer = []
-      await queue.push(rest, signal)
+    // Rows an adapter emits at the end (OTLP span trees) are priced and written one batch at a
+    // time through the bounded write queue, so priced rows held at once stay within
+    // (maxPendingWrites + 1) batches, and the event loop gets a turn between batches so a
+    // cancel message is received while a large file finishes.
+    let lastYield = Date.now()
+    for (const r of drainRows(run.finish())) {
+      addRow(r)
+      if (buffer.length < batchSize) continue
+      await flushBatch()
+      progress(false)
+      if (Date.now() - lastYield >= YIELD_EVERY_MS) {
+        await yieldToEventLoop()
+        lastYield = Date.now()
+      }
+      if (signal.aborted) throw abortError()
     }
+    await flushBatch()
     await queue.drain()
     if (signal.aborted) throw abortError()
     progress(true)

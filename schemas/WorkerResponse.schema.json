@@ -498,8 +498,15 @@
                         "additionalProperties": false
                       },
                       "valueUsd": {
-                        "type": "string",
-                        "pattern": "^-?\\d+(\\.\\d+)?$"
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "pattern": "^-?\\d+(\\.\\d+)?$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
                       },
                       "rowsNotPriced": {
                         "type": "integer",
@@ -510,6 +517,9 @@
                         "type": "integer",
                         "minimum": -9007199254740991,
                         "maximum": 9007199254740991
+                      },
+                      "partial": {
+                        "type": "boolean"
                       }
                     },
                     "required": [
@@ -519,7 +529,8 @@
                       "tokens",
                       "valueUsd",
                       "rowsNotPriced",
-                      "rowsUnresolved"
+                      "rowsUnresolved",
+                      "partial"
                     ],
                     "additionalProperties": false
                   }
@@ -571,8 +582,15 @@
                         "additionalProperties": false
                       },
                       "valueUsd": {
-                        "type": "string",
-                        "pattern": "^-?\\d+(\\.\\d+)?$"
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "pattern": "^-?\\d+(\\.\\d+)?$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
                       },
                       "rowsNotPriced": {
                         "type": "integer",
@@ -583,6 +601,9 @@
                         "type": "integer",
                         "minimum": -9007199254740991,
                         "maximum": 9007199254740991
+                      },
+                      "partial": {
+                        "type": "boolean"
                       }
                     },
                     "required": [
@@ -592,7 +613,8 @@
                       "tokens",
                       "valueUsd",
                       "rowsNotPriced",
-                      "rowsUnresolved"
+                      "rowsUnresolved",
+                      "partial"
                     ],
                     "additionalProperties": false
                   }
@@ -644,8 +666,15 @@
                         "additionalProperties": false
                       },
                       "valueUsd": {
-                        "type": "string",
-                        "pattern": "^-?\\d+(\\.\\d+)?$"
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "pattern": "^-?\\d+(\\.\\d+)?$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
                       },
                       "rowsNotPriced": {
                         "type": "integer",
@@ -656,6 +685,9 @@
                         "type": "integer",
                         "minimum": -9007199254740991,
                         "maximum": 9007199254740991
+                      },
+                      "partial": {
+                        "type": "boolean"
                       }
                     },
                     "required": [
@@ -665,7 +697,8 @@
                       "tokens",
                       "valueUsd",
                       "rowsNotPriced",
-                      "rowsUnresolved"
+                      "rowsUnresolved",
+                      "partial"
                     ],
                     "additionalProperties": false
                   }
@@ -717,8 +750,15 @@
                         "additionalProperties": false
                       },
                       "valueUsd": {
-                        "type": "string",
-                        "pattern": "^-?\\d+(\\.\\d+)?$"
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "pattern": "^-?\\d+(\\.\\d+)?$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
                       },
                       "rowsNotPriced": {
                         "type": "integer",
@@ -729,6 +769,9 @@
                         "type": "integer",
                         "minimum": -9007199254740991,
                         "maximum": 9007199254740991
+                      },
+                      "partial": {
+                        "type": "boolean"
                       }
                     },
                     "required": [
@@ -738,7 +781,8 @@
                       "tokens",
                       "valueUsd",
                       "rowsNotPriced",
-                      "rowsUnresolved"
+                      "rowsUnresolved",
+                      "partial"
                     ],
                     "additionalProperties": false
                   }
@@ -970,6 +1014,9 @@
         "cancelMs": {
           "type": "number"
         },
+        "deleteMs": {
+          "type": "number"
+        },
         "partialRowsDeleted": {
           "type": "boolean"
         }
@@ -977,6 +1024,7 @@
       "required": [
         "type",
         "cancelMs",
+        "deleteMs",
         "partialRowsDeleted"
       ],
       "additionalProperties": false

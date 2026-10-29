@@ -3,6 +3,7 @@ import type { RawRecord } from '../adapters/types'
 import { streamCsv } from './csv'
 import { streamJsonPath } from './jsonArray'
 import { streamJsonl } from './jsonl'
+import { OTLP_EXTRA_PATHS, OTLP_SPAN_PATH, OtlpSpanAssembler } from './otlp'
 import { isAbortError, type OnRecords, type StreamControl } from './reader'
 
 export type { StreamControl, OnRecords } from './reader'
@@ -37,7 +38,8 @@ export function streamFormatForVariant(v: VariantId): StreamFormat {
  * - jsonl / otlp-jsonl: one JSON value per line (an OTLP export request per line for otlp-jsonl).
  * - json-array: each element of the top-level array.
  * - usage-page: each bucket of `data` in a usage page.
- * - otlp: each element of `resourceSpans` in one export request.
+ * - otlp: each span of one export request, streamed one span at a time, as a one-span export
+ *   request `{ resourceSpans: [{ resource, scopeSpans: [{ scope, spans: [span] }] }] }`.
  * - csv: one record per data row, keyed by header.
  * If onRecords returns a promise, reading waits for it. On abort, throws an AbortError.
  */
@@ -55,8 +57,22 @@ export async function streamRecords(
       return streamJsonPath(file, { path: '$.*', root: '[', describe: 'a JSON array' }, control, onRecords)
     case 'usage-page':
       return streamJsonPath(file, { path: '$.data.*', root: '{', describe: 'a usage page object' }, control, onRecords)
-    case 'otlp':
-      return streamJsonPath(file, { path: '$.resourceSpans.*', root: '{', describe: 'an OTLP export request object' }, control, onRecords)
+    case 'otlp': {
+      const spans = new OtlpSpanAssembler()
+      return streamJsonPath(
+        file,
+        {
+          path: OTLP_SPAN_PATH,
+          extraPaths: [...OTLP_EXTRA_PATHS],
+          root: '{',
+          describe: 'an OTLP export request object',
+          toRecords: (info) => spans.value(info),
+          onEnd: () => spans.end(),
+        },
+        control,
+        onRecords,
+      )
+    }
     case 'csv':
       return streamCsv(file, control, onRecords)
   }

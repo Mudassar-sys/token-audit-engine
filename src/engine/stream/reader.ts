@@ -72,45 +72,61 @@ export async function emitBatches(records: RawRecord[], onRecords: OnRecords, si
 }
 
 /**
- * Reads a Blob once as UTF-8 text. Every byte chunk goes to onChunk before decoding.
- * Decoding keeps state across chunks, so a multibyte character split over a boundary
- * comes out whole, and a leading BOM is dropped.
+ * Reads a Blob once as UTF-8 text:
+ * `file.stream()` -> a pull-only byte stream that hashes and counts each chunk -> `TextDecoderStream`.
+ * Every byte chunk goes to onChunk, in order, before it is decoded. TextDecoderStream keeps state
+ * across chunks, so a multibyte character split over a boundary comes out whole, and a leading BOM
+ * is dropped.
+ * Bytes are only pulled when the consumer asks for more text. The pipe into the decoder holds at most
+ * one chunk ahead of the consumer, so a caller that awaits onRecords before calling next() pauses reading.
  */
 export class ByteTextReader {
-  private readonly reader: ReadableStreamDefaultReader<Uint8Array>
-  private readonly decoder = new TextDecoder('utf-8')
+  private reader: ReadableStreamDefaultReader<string> | null = null
   private leftover: Uint8Array | null = null
   private bytesRead = 0
   private done = false
   private readonly onAbort: () => void
 
   constructor(
-    file: Blob,
+    private readonly file: Blob,
     private readonly control: StreamControl,
     private readonly sliceSize = Number.POSITIVE_INFINITY,
   ) {
-    this.reader = (file.stream() as ReadableStream<Uint8Array>).getReader()
     this.onAbort = () => {
-      this.reader.cancel().catch(() => {})
+      this.reader?.cancel().catch(() => {})
     }
     control.signal.addEventListener('abort', this.onAbort, { once: true })
   }
 
-  /** Next decoded text piece ('' is possible), or null at the end of the file. */
-  async next(): Promise<string | null> {
-    throwIfAborted(this.control.signal)
-    if (this.done) return null
-    let bytes: Uint8Array
-    if (this.leftover) {
-      bytes = this.leftover
-      this.leftover = null
-    } else {
-      const { value, done } = await this.reader.read()
-      throwIfAborted(this.control.signal)
+  /** The pipe starts pulling as soon as it exists, so it is built on the first next(). */
+  private open(): ReadableStreamDefaultReader<string> {
+    if (this.reader) return this.reader
+    const source = (this.file.stream() as ReadableStream<Uint8Array>).getReader()
+    const hashed = new ReadableStream<Uint8Array>(
+      {
+        pull: (c) => this.pullBytes(source, c),
+        cancel: (reason) => source.cancel(reason),
+      },
+      { highWaterMark: 0 },
+    )
+    // TextDecoderStream accepts any BufferSource; this pipe only ever writes Uint8Array.
+    const decoder = new TextDecoderStream('utf-8') as unknown as ReadableWritablePair<string, Uint8Array>
+    this.reader = hashed.pipeThrough(decoder).getReader()
+    return this.reader
+  }
+
+  /** Read one raw chunk (or one slice of it), hash and count it, and pass it on to the decoder. */
+  private async pullBytes(
+    source: ReadableStreamDefaultReader<Uint8Array>,
+    c: ReadableStreamDefaultController<Uint8Array>,
+  ): Promise<void> {
+    let bytes = this.leftover
+    this.leftover = null
+    if (!bytes) {
+      const { value, done } = await source.read()
       if (done || !value) {
-        this.done = true
-        this.release()
-        return this.decoder.decode()
+        c.close()
+        return
       }
       bytes = value
     }
@@ -118,17 +134,32 @@ export class ByteTextReader {
       this.leftover = bytes.subarray(this.sliceSize)
       bytes = bytes.subarray(0, this.sliceSize)
     }
+    if (bytes.byteLength === 0) return this.pullBytes(source, c)
     this.bytesRead += bytes.byteLength
     this.control.onChunk(bytes)
     this.control.onBytes(this.bytesRead)
-    return this.decoder.decode(bytes, { stream: true })
+    c.enqueue(bytes)
+  }
+
+  /** Next decoded text piece (never empty), or null at the end of the file. */
+  async next(): Promise<string | null> {
+    throwIfAborted(this.control.signal)
+    if (this.done) return null
+    const { value, done } = await this.open().read()
+    throwIfAborted(this.control.signal)
+    if (done || value === undefined) {
+      this.done = true
+      this.release()
+      return null
+    }
+    return value
   }
 
   /** Stop reading and free the underlying stream. */
   cancel(): void {
     if (!this.done) {
       this.done = true
-      this.reader.cancel().catch(() => {})
+      this.reader?.cancel().catch(() => {})
     }
     this.release()
   }

@@ -1,6 +1,7 @@
 import { useId, useState } from 'react'
 import type { AggregateBucket, AuditSummary } from '../../engine/contracts'
-import { displayUsd, formatInt } from '../format'
+import { formatInt } from '../format'
+import { EXCLUDED_HEADING, PARTIAL_TOTAL, bucketValue, excludedGroups } from './display'
 
 export function CoveragePanel({ summary }: { summary: AuditSummary }) {
   const ids = useId()
@@ -30,7 +31,28 @@ export function CoveragePanel({ summary }: { summary: AuditSummary }) {
           {formatInt(c.totalRows - c.countedRows)} rows are kept only to reconcile other rows (for example aggregate spans) and are not counted.
         </p>
       )}
+      <ExcludedList excluded={summary.excludedFromCost} />
     </section>
+  )
+}
+
+/** Quantities that are counted but never priced. Part of the coverage panel. */
+function ExcludedList({ excluded }: { excluded: Record<string, number> }) {
+  const ids = useId()
+  const groups = excludedGroups(excluded)
+  return (
+    <div className="excluded" data-testid="excluded-from-cost" aria-labelledby={`${ids}-h`} role="group">
+      <h3 id={`${ids}-h`}>{EXCLUDED_HEADING}</h3>
+      <p>These are counted here and never folded into token cost.</p>
+      <dl className="stats">
+        {groups.map((g) => (
+          <div key={g.label}>
+            <dt>{g.label}</dt>
+            <dd>{formatInt(g.count)}</dd>
+          </div>
+        ))}
+      </dl>
+    </div>
   )
 }
 
@@ -98,6 +120,9 @@ export function AggregatesPanel({ summary }: { summary: AuditSummary }) {
         </select>
       </div>
       {summary.aggregates.overflowed && <p className="hint">Some groups hit the key limit; later new keys are counted under "(overflow)".</p>}
+      {buckets.some((b) => bucketValue(b).partial) && (
+        <p className="hint">A value marked {PARTIAL_TOTAL} leaves out the group's Not priced and Unresolved rows.</p>
+      )}
       <div className="table-scroll" tabIndex={0} role="region" aria-label={`Breakdown by ${dimLabel}`}>
         <table className="data">
           <caption>
@@ -130,7 +155,7 @@ export function AggregatesPanel({ summary }: { summary: AuditSummary }) {
                 <td className="num">{formatInt(b.tokens.cacheWrite)}</td>
                 <td className="num">{formatInt(b.tokens.output)}</td>
                 <td className="num">{formatInt(b.tokens.reasoning)}</td>
-                <td className="num">{displayUsd(b.valueUsd)}</td>
+                <BucketValueCell bucket={b} />
                 <td className="num">{formatInt(b.rowsNotPriced)}</td>
                 <td className="num">{formatInt(b.rowsUnresolved)}</td>
               </tr>
@@ -142,25 +167,19 @@ export function AggregatesPanel({ summary }: { summary: AuditSummary }) {
   )
 }
 
-export function ExcludedPanel({ summary }: { summary: AuditSummary }) {
-  const ids = useId()
-  const entries = Object.entries(summary.excludedFromCost).filter(([, v]) => v > 0)
+function BucketValueCell({ bucket }: { bucket: AggregateBucket }) {
+  const { text, partial } = bucketValue(bucket)
   return (
-    <section className="panel" aria-labelledby={`${ids}-h`}>
-      <h2 id={`${ids}-h`}>Counted but not priced</h2>
-      <p>Audio, image and video tokens, web search requests, tool sessions and storage are counted here and never folded into token cost.</p>
-      {entries.length === 0 ? (
-        <p>None in this file.</p>
-      ) : (
-        <dl className="stats">
-          {entries.map(([k, v]) => (
-            <div key={k}>
-              <dt>{k}</dt>
-              <dd>{formatInt(v)}</dd>
-            </div>
-          ))}
-        </dl>
+    <td className="num">
+      {text}
+      {partial && (
+        <>
+          {' '}
+          <span className="partial-tag" data-testid="bucket-partial">
+            {PARTIAL_TOTAL}
+          </span>
+        </>
       )}
-    </section>
+    </td>
   )
 }

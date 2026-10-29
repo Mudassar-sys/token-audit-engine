@@ -1,10 +1,19 @@
-import { JSONParser } from '@streamparser/json'
+import { JSONParser, type ParsedElementInfo } from '@streamparser/json'
 import type { RawRecord } from '../adapters/types'
 import { ByteTextReader, emitBatches, type OnRecords, type StreamControl } from './reader'
 
 export interface JsonPathOptions {
   /** @streamparser/json path selector, for example '$.*' or '$.data.*'. */
   path: string
+  /** Extra selectors emitted alongside `path` (used with toRecords). */
+  extraPaths?: string[]
+  /**
+   * Turn one emitted value into records. Default: one json record per value.
+   * Must read `info.stack` synchronously: the parser reuses it.
+   */
+  toRecords?: (info: ParsedElementInfo) => RawRecord[]
+  /** Records still held when the document ends (called once, after the last value). */
+  onEnd?: () => RawRecord[]
   /** First non-space character the document must start with. */
   root: '[' | '{'
   /** What the document is, for error messages. */
@@ -24,12 +33,23 @@ export async function streamJsonPath(
   onRecords: OnRecords,
 ): Promise<void> {
   const reader = new ByteTextReader(file, control)
-  const parser = new JSONParser({ paths: [opts.path], keepStack: false })
+  const parser = new JSONParser({ paths: [opts.path, ...(opts.extraPaths ?? [])], keepStack: false })
   let out: RawRecord[] = []
   const state: { failure: string | null } = { failure: null }
   let started = false
-  parser.onValue = ({ value }) => {
-    out.push({ kind: 'json', value, line: null })
+  const toRecords = opts.toRecords
+  parser.onValue = (info) => {
+    if (toRecords) {
+      for (const r of toRecords(info)) out.push(r)
+    } else {
+      out.push({ kind: 'json', value: info.value, line: null })
+    }
+  }
+  let ended = false
+  const takeEnd = () => {
+    if (ended) return
+    ended = true
+    if (opts.onEnd) for (const r of opts.onEnd()) out.push(r)
   }
   parser.onError = (err) => {
     state.failure ??= err.message
@@ -41,6 +61,7 @@ export async function streamJsonPath(
     await emitBatches(batch, onRecords, control.signal)
   }
   const fail = async (message: string, raw: string) => {
+    takeEnd()
     await flush()
     await emitBatches([{ kind: 'error', message, raw: raw.slice(0, 2000), line: null }], onRecords, control.signal)
   }
@@ -76,6 +97,7 @@ export async function streamJsonPath(
     }
     if (!started) return
     if (!parser.isEnded) parser.end()
+    if (!state.failure) takeEnd()
     await flush()
     if (state.failure) await fail(`The JSON document is incomplete: ${state.failure}`, '')
   } finally {

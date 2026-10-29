@@ -21,7 +21,7 @@
     "counted": true,
     "requests": 1,
     "tierStated": "standard",
-    "modelLogged": "acme-unlisted-model-x",
+    "modelLogged": "unlisted-model-x",
     "reported": null
   },
   {
@@ -46,7 +46,7 @@
     "counted": true,
     "requests": 1,
     "tierStated": "standard",
-    "modelLogged": "acme-unlisted-model-x",
+    "modelLogged": "unlisted-model-x",
     "reported": null
   }
 ]

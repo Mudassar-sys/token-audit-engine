@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { Aggregator, inputBand, OVERFLOW_KEY } from '../../src/engine/aggregate'
 import { AuditSummary } from '../../src/engine/contracts'
-import { makeAuditRow } from './helpers/testSnapshot'
+import { usdToFemto } from '../../src/engine/money'
+import { modelBaseline } from '../../src/engine/savings'
+import { makeAuditRow, TEST_SNAPSHOT as testSnapshot } from './helpers/testSnapshot'
 
 describe('Aggregator', () => {
   it('caps each dimension and folds new keys into (overflow)', () => {
@@ -33,9 +35,9 @@ describe('Aggregator', () => {
     agg.add(makeAuditRow({ kind: 'Estimated', value: '0.005615' }))
     agg.add(makeAuditRow({ kind: 'Measured charge', value: '0.95', model: 'openai/gpt-4o' }))
     agg.add(makeAuditRow({ kind: 'Estimated', value: '0', model: 'codestral/codestral-latest' }))
-    agg.add(makeAuditRow({ kind: 'Not priced', model: 'acme-unlisted-model-x' }))
+    agg.add(makeAuditRow({ kind: 'Not priced', model: 'unlisted-model-x' }))
     agg.add(makeAuditRow({ kind: 'Not priced', model: null }))
-    agg.add(makeAuditRow({ kind: 'Not priced', model: 'acme-unlisted-model-x' }))
+    agg.add(makeAuditRow({ kind: 'Not priced', model: 'unlisted-model-x' }))
     agg.add(makeAuditRow({ kind: 'Unresolved', malformed: true, model: null }))
     agg.add(makeAuditRow({ kind: 'Unresolved', counted: false, model: 'gpt-4o', value: null }))
     const s = agg.summary()
@@ -58,6 +60,49 @@ describe('Aggregator', () => {
     expect(s.aggregates.byModel.find((b) => b.key === '(no model)')?.rowsNotPriced).toBe(1)
     expect(s.aggregates.byModel.find((b) => b.key === '(no model)')?.rowsUnresolved).toBe(1)
     expect(() => AuditSummary.shape.coverage.parse(s.coverage)).not.toThrow()
+  })
+
+  it('a bucket with no priced row has no value, and a bucket that leaves rows out is partial', () => {
+    const agg = new Aggregator()
+    agg.add(makeAuditRow({ kind: 'Not priced', model: 'unlisted-model-x' }))
+    agg.add(makeAuditRow({ kind: 'Estimated', value: '0.003' }))
+    agg.add(makeAuditRow({ kind: 'Not priced' }))
+    agg.add(makeAuditRow({ kind: 'Unresolved' }))
+    agg.add(makeAuditRow({ kind: 'Estimated', value: '0', model: 'codestral/codestral-latest' }))
+    const s = agg.summary()
+    const model = (k: string) => s.aggregates.byModel.find((b) => b.key === k)
+    expect(model('unlisted-model-x')).toMatchObject({ valueUsd: null, partial: true, rowsNotPriced: 1 })
+    expect(model('gpt-4o')).toMatchObject({ valueUsd: '0.003', partial: true, rowsNotPriced: 1, rowsUnresolved: 1 })
+    // A valid zero stays '0' and is not partial.
+    expect(model('codestral/codestral-latest')).toMatchObject({ valueUsd: '0', partial: false })
+    const label = (k: string) => s.aggregates.byLabel.find((b) => b.key === k)
+    expect(label('Not priced')).toMatchObject({ valueUsd: null, partial: true })
+    expect(label('Unresolved')).toMatchObject({ valueUsd: null, partial: true })
+    expect(label('Estimated')).toMatchObject({ valueUsd: '0.003', partial: false })
+    // Buckets without a value sort after valued ones, and every bucket is schema valid.
+    expect(s.aggregates.byModel.map((b) => b.key)).toEqual(['gpt-4o', 'codestral/codestral-latest', 'unlisted-model-x'])
+    expect(() => AuditSummary.shape.aggregates.parse(s.aggregates)).not.toThrow()
+  })
+
+  it('past the band key cap, priced and unpriced rows fold into separate overflow bands', () => {
+    const agg = new Aggregator(2)
+    agg.add(makeAuditRow({ kind: 'Not priced', model: 'unlisted-model-x' }))
+    agg.add(makeAuditRow({ value: '0.00225', model: 'gpt-4o' }))
+    agg.add(makeAuditRow({ value: '0.0001', model: 'gpt-4o-mini' }))
+    agg.add(makeAuditRow({ value: '0.00017', model: 'gpt-4o-mini', uncached: 5000 }))
+    agg.add(makeAuditRow({ kind: 'Not priced', model: 'unlisted-other' }))
+    const s = agg.summary()
+    const overflow = s.bands.filter((b) => b.model === OVERFLOW_KEY)
+    expect(overflow).toEqual([
+      expect.objectContaining({ band: OVERFLOW_KEY, priced: true, requests: 2, valueUsd: '0.00027' }),
+      expect.objectContaining({ band: OVERFLOW_KEY, priced: false, requests: 1, valueUsd: '0' }),
+    ])
+    // Priced bands now hold the whole total value.
+    const pricedSum = s.bands.filter((b) => b.priced).reduce((sum, b) => sum + usdToFemto(b.valueUsd), 0n)
+    expect(pricedSum).toBe(usdToFemto(s.totals.value.exactUsd))
+    const baseline = modelBaseline(s.bands, testSnapshot, 'gpt-4o')
+    expect(baseline.actual.exactUsd).toBe('0.00252')
+    expect(baseline.skipped.map((b) => b.model).sort()).toEqual([OVERFLOW_KEY, 'unlisted-model-x'].sort())
   })
 
   it('a full total has no partial marker; one left-out row reads in the singular', () => {

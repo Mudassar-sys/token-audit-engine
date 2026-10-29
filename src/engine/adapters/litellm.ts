@@ -5,29 +5,37 @@ import { ZERO_CACHE_WRITE, at, malformedRow, tok, toUtcIso } from './types'
 
 /**
  * Source F: LiteLLM spend logs (LiteLLM_SpendLogs rows), as CSV or a JSON array.
- * Cache and reasoning tokens live in the metadata JSON. Whether prompt_tokens already
- * includes cached tokens is decided once per file by scanFileFacts.
+ * Cache, modality and reasoning tokens live in the metadata JSON. Whether prompt_tokens
+ * already includes cached tokens is decided per row from its call type and usage shape,
+ * because one proxy log can mix normalized rows with raw Anthropic rows.
  */
 
-/** fileFacts key that carries the per-file inclusion decision. */
+/** fileFacts key that carries the per-file summary of the row decisions (evidence only). */
 export const LITELLM_INCLUSION_FACT = 'litellmCacheInclusion'
 
-export interface LiteLlmInclusion {
+/** How one row's prompt_tokens relates to its cached tokens. */
+export interface LiteLlmRowInclusion {
   /** included: prompt_tokens contains cache reads and writes. excluded: it does not. */
   mode: 'included' | 'excluded'
-  /** detected: a row proves exclusion. assumed: documented default. no_cache_tokens: nothing to decide. */
+  /** detected: the call type, route or usage shape says so. assumed: no signal, documented default. */
+  basis: 'detected' | 'assumed'
+  /** Short reason for the mapping line. */
+  reason: string
+}
+
+/** Summary of the per-row decisions over the scanned rows. Evidence only, never applied to rows. */
+export interface LiteLlmInclusion {
+  /** Decision shared by every scanned row with cached tokens, or mixed when rows differ. */
+  mode: 'included' | 'excluded' | 'mixed'
+  /** no_cache_tokens: nothing to decide. assumed: some row had no signal. detected: every row had one. */
   basis: 'detected' | 'assumed' | 'no_cache_tokens'
   rowsScanned: number
   rowsWithCache: number
+  /** Rows with cached tokens decided as excluded (raw Anthropic usage). */
+  rowsExcluded: number
+  /** Rows decided as included whose cached tokens exceed prompt_tokens (Unresolved). */
+  rowsContradicting: number
   evidence: string | null
-}
-
-const DEFAULT_INCLUSION: LiteLlmInclusion = {
-  mode: 'included',
-  basis: 'assumed',
-  rowsScanned: 0,
-  rowsWithCache: 0,
-  evidence: null,
 }
 
 const SCAN_LIMIT = 5000
@@ -39,6 +47,25 @@ const WRITE_KEYS = [
   'prompt_tokens_details.cache_creation_tokens',
 ]
 const REASONING_KEYS = ['completion_tokens_details.reasoning_tokens']
+/** Where LiteLLM keeps the cache write split by lifetime (normalized and Anthropic shapes). */
+const TTL_BASES = ['prompt_tokens_details.cache_creation_token_details', 'cache_creation']
+const TTLS: readonly CacheDuration[] = ['5m', '1h', '30m', '12h']
+/** Counted but never priced. Input modality tokens are part of prompt_tokens, output ones of completion_tokens. */
+const EXCLUDED_KEYS = {
+  input_audio: 'prompt_tokens_details.audio_tokens',
+  input_image: 'prompt_tokens_details.image_tokens',
+  output_audio: 'completion_tokens_details.audio_tokens',
+  output_image: 'completion_tokens_details.image_tokens',
+  web_search_requests: 'server_tool_use.web_search_requests',
+} as const
+type ExcludedName = keyof typeof EXCLUDED_KEYS
+const EXCLUDED_NAMES = Object.keys(EXCLUDED_KEYS) as ExcludedName[]
+
+/** Call types whose usage LiteLLM normalizes to the OpenAI format, where prompt_tokens includes cache. */
+const NORMALIZED_CALL_TYPES = new Set(['completion', 'acompletion', 'text_completion', 'atext_completion', 'responses', 'aresponses'])
+const PASS_THROUGH = /pass[_-]?through/i
+/** Proxy routes that return raw Anthropic usage: the Anthropic pass-through and the /v1/messages endpoint. */
+const RAW_ANTHROPIC_ROUTE = /(^|\/)anthropic\/v1\/messages|^\/?v1\/messages(\/|\?|$)/i
 
 const CORE_COLUMNS = ['request_id', 'spend', 'prompt_tokens', 'completion_tokens', 'model', 'startTime']
 const EXTRA_COLUMNS = [
@@ -75,16 +102,26 @@ interface MetaValue {
   path: string
 }
 
+/** A cache write split by lifetime, read from one metadata location. */
+interface TtlSplit {
+  path: string
+  values: Partial<Record<CacheDuration, number>>
+  sum: number
+}
+
 /** Fields read from one spend log row, shared by the file scan and the main pass. */
 interface Extracted {
   row: Record<string, unknown>
   raw: Record<string, unknown>
   bad: string[]
+  meta: Record<string, unknown> | null
   prompt: number | null
   completion: number | null
   read: MetaValue[]
   write: MetaValue[]
+  splits: TtlSplit[]
   reasoning: MetaValue[]
+  excluded: Record<ExcludedName, MetaValue[]>
   metadataError: string | null
 }
 
@@ -128,38 +165,77 @@ function extract(row: Record<string, unknown>): Extracted {
   const completion = num('completion_tokens')
   const { meta, error } = parseMetadata(field(row, 'metadata'))
 
-  const collect = (keys: string[]): MetaValue[] => {
+  /** One metadata count: undefined when absent, null when invalid (listed in bad). */
+  const metaTok = (src: string, key: string): number | null | undefined => {
+    if (!meta) return undefined
+    const v = at(meta[src], key)
+    if (v === undefined || v === null) return undefined
+    const path = `metadata.${src}.${key}`
+    raw[path] = v
+    const n = tok(v)
+    if (Number.isNaN(n) || n === null) {
+      bad.push(path)
+      return null
+    }
+    return n
+  }
+
+  const collect = (keys: readonly string[]): MetaValue[] => {
     const out: MetaValue[] = []
-    if (!meta) return out
     for (const src of META_SOURCES) {
       for (const key of keys) {
-        const v = at(meta[src], key)
-        if (v === undefined || v === null) continue
-        const path = `metadata.${src}.${key}`
-        raw[path] = v
-        const n = tok(v)
-        if (Number.isNaN(n) || n === null) bad.push(path)
-        else out.push({ value: n, path })
+        const n = metaTok(src, key)
+        if (typeof n === 'number') out.push({ value: n, path: `metadata.${src}.${key}` })
       }
     }
     return out
   }
 
+  const splits: TtlSplit[] = []
+  for (const src of META_SOURCES) {
+    for (const base of TTL_BASES) {
+      const values: Partial<Record<CacheDuration, number>> = {}
+      let found = false
+      let sum = 0
+      for (const ttl of TTLS) {
+        const n = metaTok(src, `${base}.ephemeral_${ttl}_input_tokens`)
+        if (n === undefined) continue
+        found = true
+        if (n === null) continue
+        values[ttl] = n
+        sum += n
+      }
+      if (found) splits.push({ path: `metadata.${src}.${base}`, values, sum })
+    }
+  }
+
+  const excluded = {} as Record<ExcludedName, MetaValue[]>
+  for (const name of EXCLUDED_NAMES) excluded[name] = collect([EXCLUDED_KEYS[name]])
+
   return {
     row,
     raw,
     bad,
+    meta,
     prompt,
     completion,
     read: collect(READ_KEYS),
     write: collect(WRITE_KEYS),
+    splits,
     reasoning: collect(REASONING_KEYS),
+    excluded,
     metadataError: error,
   }
 }
 
 function first(values: MetaValue[]): number {
   return values[0]?.value ?? 0
+}
+
+/** Total cache writes: the logged total, else the sum of the lifetime split. */
+function writeTotal(x: Extracted): number {
+  if (x.write.length > 0) return first(x.write)
+  return x.splits[0]?.sum ?? 0
 }
 
 /** Names of fields that report the same quantity with different values. */
@@ -170,33 +246,88 @@ function disagreement(values: MetaValue[]): string | null {
   return other ? `${head.path} (${head.value}) differs from ${other.path} (${other.value})` : null
 }
 
-/** Decide once per file whether prompt_tokens includes cached tokens. */
+function splitText(s: TtlSplit): string {
+  return TTLS.map((t) => `${t} ${s.values[t] ?? 0}`).join(', ')
+}
+
+/**
+ * Decide for one row whether prompt_tokens includes cached tokens. LiteLLM's normalized
+ * (OpenAI format) usage includes them. Raw Anthropic usage from /v1/messages or a
+ * pass-through call leaves them out.
+ */
+export function litellmRowInclusion(row: Record<string, unknown>, meta: Record<string, unknown> | null): LiteLlmRowInclusion {
+  const excluded = (reason: string): LiteLlmRowInclusion => ({ mode: 'excluded', basis: 'detected', reason })
+  const callType = text(field(row, 'call_type'))
+  const ct = callType?.toLowerCase() ?? ''
+  if (ct.includes('anthropic_messages')) return excluded(`call_type ${callType} logs raw Anthropic usage`)
+  if (PASS_THROUGH.test(ct)) return excluded(`call_type ${callType} is a pass-through call with raw provider usage`)
+  const apiBase = text(field(row, 'api_base'))
+  if (apiBase !== null && PASS_THROUGH.test(apiBase)) return excluded(`api_base ${apiBase} is a pass-through endpoint`)
+  const route = meta ? text(meta.user_api_key_request_route) : null
+  if (route !== null && (PASS_THROUGH.test(route) || RAW_ANTHROPIC_ROUTE.test(route))) {
+    return excluded(`metadata.user_api_key_request_route ${route} returns raw provider usage`)
+  }
+  for (const src of META_SOURCES) {
+    const u = meta?.[src]
+    if (!isObj(u) || u.input_tokens == null || u.prompt_tokens_details != null) continue
+    if (u.cache_read_input_tokens != null || u.cache_creation_input_tokens != null) {
+      return excluded(`metadata.${src} is raw Anthropic usage (input_tokens with cache fields, no prompt_tokens_details)`)
+    }
+  }
+  if (NORMALIZED_CALL_TYPES.has(ct)) {
+    return { mode: 'included', basis: 'detected', reason: `call_type ${callType} logs LiteLLM's normalized usage` }
+  }
+  for (const src of META_SOURCES) {
+    const u = meta?.[src]
+    if (isObj(u) && isObj(u.prompt_tokens_details)) {
+      return { mode: 'included', basis: 'detected', reason: `metadata.${src}.prompt_tokens_details shows LiteLLM's normalized usage` }
+    }
+  }
+  return {
+    mode: 'included',
+    basis: 'assumed',
+    reason: `${callType === null ? 'no call_type' : `call_type ${callType} gives no signal`}, LiteLLM's documented default assumed`,
+  }
+}
+
+/** Summarize the per-row decisions over the first rows of a file. Evidence only. */
 export function scanLiteLlmInclusion(sample: RawRecord[]): LiteLlmInclusion {
   let rowsScanned = 0
   let rowsWithCache = 0
+  let rowsExcluded = 0
+  let rowsContradicting = 0
+  let assumed = false
+  let evidence: string | null = null
+  const modes = new Set<'included' | 'excluded'>()
   for (const record of sample.slice(0, SCAN_LIMIT)) {
     const row = recordRow(record)
     if (!row) continue
     const x = extract(row)
     if (x.bad.length > 0 || x.prompt === null) continue
     rowsScanned++
-    const cached = first(x.read) + first(x.write)
+    const cached = first(x.read) + writeTotal(x)
     if (cached === 0) continue
     rowsWithCache++
-    if (cached > x.prompt) {
+    const d = litellmRowInclusion(row, x.meta)
+    modes.add(d.mode)
+    if (d.basis === 'assumed') assumed = true
+    if (d.mode === 'excluded') {
+      rowsExcluded++
+    } else if (cached > x.prompt) {
+      rowsContradicting++
       const id = text(field(row, 'request_id'))
-      return {
-        mode: 'excluded',
-        basis: 'detected',
-        rowsScanned,
-        rowsWithCache,
-        evidence: `${id ? `request ${id}` : `row ${rowsScanned}`}: cache read ${first(x.read)} plus cache write ${first(x.write)} exceed prompt_tokens ${x.prompt}`,
-      }
+      evidence ??= `${id ? `request ${id}` : `row ${rowsScanned}`}: cache read ${first(x.read)} plus cache write ${writeTotal(x)} exceed prompt_tokens ${x.prompt} although ${d.reason}`
     }
   }
-  return rowsWithCache > 0
-    ? { mode: 'included', basis: 'assumed', rowsScanned, rowsWithCache, evidence: null }
-    : { mode: 'included', basis: 'no_cache_tokens', rowsScanned, rowsWithCache, evidence: null }
+  return {
+    mode: modes.size > 1 ? 'mixed' : modes.has('excluded') ? 'excluded' : 'included',
+    basis: rowsWithCache === 0 ? 'no_cache_tokens' : assumed ? 'assumed' : 'detected',
+    rowsScanned,
+    rowsWithCache,
+    rowsExcluded,
+    rowsContradicting,
+    evidence,
+  }
 }
 
 /** Write duration when LiteLLM logs no TTL split. */
@@ -206,13 +337,7 @@ export function litellmWriteDuration(provider: string | null): CacheDuration {
   return '5m'
 }
 
-function readInclusion(facts: Record<string, unknown>): LiteLlmInclusion {
-  const f = facts[LITELLM_INCLUSION_FACT]
-  if (isObj(f) && (f.mode === 'included' || f.mode === 'excluded')) return f as unknown as LiteLlmInclusion
-  return DEFAULT_INCLUSION
-}
-
-function normalize(record: RawRecord, variant: VariantId, inclusion: LiteLlmInclusion): AdapterRow {
+function normalize(record: RawRecord, variant: VariantId): AdapterRow {
   if (record.kind === 'error') return malformedRow(variant, record.message, record.raw)
   const row = recordRow(record)
   if (!row) return malformedRow(variant, 'record is not a spend log object', record.kind === 'json' ? safeJson(record.value) : '')
@@ -226,12 +351,15 @@ function normalize(record: RawRecord, variant: VariantId, inclusion: LiteLlmIncl
   }
   keep('request_id')
   keep('call_type')
+  keep('api_base')
   keep('status')
   keep('total_tokens')
   const model = keep('model')
   const provider = keep('custom_llm_provider')
   const startTime = keep('startTime')
   const spendText = keep('spend')
+  const route = x.meta?.user_api_key_request_route
+  if (route !== undefined) raw['metadata.user_api_key_request_route'] = route
 
   if (x.bad.length > 0) return malformedRow(variant, `${x.bad.join(', ')} is not a non-negative integer`, rowText(record))
 
@@ -251,38 +379,56 @@ function normalize(record: RawRecord, variant: VariantId, inclusion: LiteLlmIncl
   const notMeasured: string[] = []
   const mapping: string[] = []
   let unresolvedReason: string | null = null
+  const flag = (f: Flag) => {
+    if (!flags.includes(f)) flags.push(f)
+  }
 
   if (x.metadataError) {
     unresolvedReason = `${x.metadataError}; cached tokens are unknown`
   }
 
   const cacheRead = first(x.read)
-  const write = first(x.write)
+  const write = writeTotal(x)
   const reasoning = x.reasoning.length > 0 ? first(x.reasoning) : null
-  for (const values of [x.read, x.write, x.reasoning]) {
+  const ex = (name: ExcludedName) => first(x.excluded[name])
+  for (const values of [x.read, x.write, x.reasoning, ...EXCLUDED_NAMES.map((n) => x.excluded[n])]) {
     const d = disagreement(values)
     if (d) {
-      if (!flags.includes('totals_disagree')) flags.push('totals_disagree')
+      flag('totals_disagree')
       unresolvedReason ??= `metadata usage fields disagree: ${d}`
     }
   }
+  /** Mapping text for subtracted modality fields. */
+  const minus = (names: ExcludedName[]) =>
+    names
+      .filter((n) => ex(n) > 0)
+      .map((n) => ` - ${x.excluded[n][0]?.path} (excluded)`)
+      .join('')
 
+  const inclusion = litellmRowInclusion(row, x.meta)
   const cached = cacheRead + write
+  const inModality = ex('input_audio') + ex('input_image')
   let uncached = 0
   if (x.prompt === null) {
     notMeasured.push('uncachedInput')
-  } else if (inclusion.mode === 'excluded') {
-    uncached = x.prompt
-    mapping.push('uncachedInput = prompt_tokens (this file logs cached tokens outside prompt_tokens)')
-    if (cached > 0) flags.push('inclusion_detected')
   } else {
-    uncached = x.prompt - cached
-    mapping.push('uncachedInput = prompt_tokens - cache read - cache write (prompt_tokens includes cached tokens)')
-    if (cached > 0) flags.push(inclusion.basis === 'detected' ? 'inclusion_detected' : 'inclusion_assumed')
-    if (uncached < 0) {
-      uncached = 0
-      flags.push('cache_exceeds_input')
-      unresolvedReason ??= `cache tokens (${cached}) exceed prompt_tokens (${x.prompt}), which contradicts the file-level inclusion decision`
+    const includes = inclusion.mode === 'included'
+    const value = x.prompt - (includes ? cached : 0) - inModality
+    mapping.push(
+      `uncachedInput = prompt_tokens${includes ? ' - cache read - cache write' : ''}${minus(['input_audio', 'input_image'])} (prompt_tokens ${includes ? 'includes' : 'excludes'} cached tokens: ${inclusion.reason})`,
+    )
+    if (cached > 0) flag(inclusion.basis === 'assumed' ? 'inclusion_assumed' : 'inclusion_detected')
+    if (value >= 0) {
+      uncached = value
+    } else if (includes && cached > x.prompt) {
+      flag('cache_exceeds_input')
+      unresolvedReason ??= `cache tokens (${cached}) exceed prompt_tokens (${x.prompt}), which contradicts the row's inclusion decision (${inclusion.reason})`
+    } else if (includes) {
+      flag('cache_exceeds_input')
+      unresolvedReason ??= `cache, audio and image tokens (${cached + inModality}) exceed prompt_tokens (${x.prompt})`
+    } else {
+      flag('totals_disagree')
+      unresolvedReason ??= `audio and image tokens (${inModality}) exceed prompt_tokens (${x.prompt})`
     }
   }
 
@@ -290,29 +436,66 @@ function normalize(record: RawRecord, variant: VariantId, inclusion: LiteLlmIncl
   else mapping.push(`cacheRead = ${x.read[0]?.path}`)
 
   const cacheWrite: TokenClasses['cacheWrite'] = { ...ZERO_CACHE_WRITE }
-  if (x.write.length === 0) {
+  const split = x.splits[0]
+  if (split) {
+    for (const ttl of TTLS) {
+      const v = split.values[ttl] ?? 0
+      cacheWrite[ttl] = v
+      if (v > 0) mapping.push(`cacheWrite.${ttl} = ${split.path}.ephemeral_${ttl}_input_tokens`)
+    }
+    if (split.sum === 0) mapping.push(`cacheWrite = ${split.path} (every lifetime 0)`)
+    const other = x.splits.find((s) => TTLS.some((t) => (s.values[t] ?? 0) !== (split.values[t] ?? 0)))
+    if (other) {
+      flag('totals_disagree')
+      unresolvedReason ??= `cache write splits disagree: ${split.path} (${splitText(split)}) differs from ${other.path} (${splitText(other)})`
+    }
+    const total = x.write[0]
+    if (total && total.value !== split.sum) {
+      flag('totals_disagree')
+      unresolvedReason ??= `cache write split ${split.path} sums to ${split.sum} but ${total.path} is ${total.value}`
+    }
+  } else if (x.write.length === 0) {
     notMeasured.push('cacheWrite')
   } else {
     const d = litellmWriteDuration(provider)
     cacheWrite[d] = write
     mapping.push(`cacheWrite.${d} = ${x.write[0]?.path} (no duration split, ${d} assumed from custom_llm_provider)`)
-    if (write > 0) flags.push('duration_assumed')
+    if (write > 0) flag('duration_assumed')
   }
 
-  if (x.completion === null) notMeasured.push('output')
-  else mapping.push('output = completion_tokens (includes reasoning tokens)')
+  let output = 0
+  if (x.completion === null) {
+    notMeasured.push('output')
+  } else {
+    const value = x.completion - ex('output_audio') - ex('output_image')
+    mapping.push(`output = completion_tokens${minus(['output_audio', 'output_image'])} (includes reasoning tokens)`)
+    if (value >= 0) {
+      output = value
+    } else {
+      flag('totals_disagree')
+      unresolvedReason ??= `audio and image output tokens exceed completion_tokens (${x.completion})`
+    }
+  }
 
   if (reasoning === null) notMeasured.push('reasoning')
   else {
     mapping.push(`reasoning = ${x.reasoning[0]?.path} (part of output, never added)`)
-    if (x.completion !== null && reasoning > x.completion) {
-      if (!flags.includes('totals_disagree')) flags.push('totals_disagree')
-      unresolvedReason ??= `reasoning tokens (${reasoning}) exceed completion_tokens (${x.completion})`
+    if (x.completion !== null && reasoning > output) {
+      flag('totals_disagree')
+      unresolvedReason ??= `reasoning tokens (${reasoning}) exceed text output tokens (${output})`
     }
+  }
+
+  const excluded: Record<string, number> = {}
+  for (const name of EXCLUDED_NAMES) {
+    const v = ex(name)
+    if (v <= 0) continue
+    excluded[name] = v
+    mapping.push(`excluded.${name} = ${x.excluded[name][0]?.path} (counted, not priced)`)
   }
   if (reported) mapping.push('reported gateway estimate = spend')
 
-  if (model === null) flags.push('model_missing')
+  if (model === null) flag('model_missing')
 
   return {
     timestamp: toUtcIso(startTime),
@@ -325,11 +508,11 @@ function normalize(record: RawRecord, variant: VariantId, inclusion: LiteLlmIncl
       uncachedInput: uncached,
       cacheRead,
       cacheWrite,
-      output: x.completion ?? 0,
+      output,
       reasoning,
     },
     notMeasured,
-    excluded: {},
+    excluded,
     reported,
     raw,
     mapping,
@@ -378,7 +561,7 @@ function scoreSpendLog(sample: RawRecord): { score: number; reason: string } {
 export const litellmAdapter: Adapter = {
   source: 'F',
   id: 'litellm-spend-logs',
-  version: '1.0.0',
+  version: '1.1.0',
   variants: ['F-csv', 'F-json'],
   label: 'LiteLLM spend logs',
   score: scoreSpendLog,
@@ -386,9 +569,9 @@ export const litellmAdapter: Adapter = {
     return { [LITELLM_INCLUSION_FACT]: scanLiteLlmInclusion(sample) }
   },
   begin(ctx) {
-    const inclusion = readInclusion(ctx.fileFacts)
+    // Inclusion is decided per row, so the file summary in ctx.fileFacts is not applied.
     return {
-      push: (record) => [normalize(record, ctx.variant, inclusion)],
+      push: (record) => [normalize(record, ctx.variant)],
       finish: () => [],
     }
   },

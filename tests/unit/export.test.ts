@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { Aggregator } from '../../src/engine/aggregate'
 import { Report, type AuditSummary, type IdentityInputs } from '../../src/engine/contracts'
 import { auditRowToCsvLine, buildReport, CSV_COLUMNS, CSV_HEADER, csvEscapeCell } from '../../src/engine/export'
-import { calculationIdentity } from '../../src/engine/identity'
+import { calculationIdentity, canonicalJson, sha256Hex } from '../../src/engine/identity'
 import { makeAuditRow, TEST_META } from './helpers/testSnapshot'
 
 describe('csvEscapeCell', () => {
@@ -56,7 +56,7 @@ function summaryFor(): AuditSummary {
   const agg = new Aggregator()
   agg.add(makeAuditRow({ rowIndex: 0, value: '0.005615' }))
   agg.add(makeAuditRow({ rowIndex: 1, kind: 'Measured charge', value: '0.00014', model: 'openai/gpt-4o' }))
-  agg.add(makeAuditRow({ rowIndex: 2, kind: 'Not priced', model: 'acme-unlisted-model-x' }))
+  agg.add(makeAuditRow({ rowIndex: 2, kind: 'Not priced', model: 'unlisted-model-x' }))
   return {
     auditId: 'audit-1',
     fileName: 'calls.jsonl',
@@ -108,5 +108,23 @@ describe('buildReport', () => {
     expect(a.exportedAt).not.toBe(b.exportedAt)
     expect(a.calculationIdentity.sha256).toBe(b.calculationIdentity.sha256)
     expect(a.savings).toBeNull()
+  })
+
+  it('stores the identity inputs in canonical form, so they hash to the stated identity', () => {
+    const routing = {
+      sourceModels: ['gpt-4o-mini', 'gpt-4o', 'gpt-4o'],
+      inputBands: ['>=100k', '<1k'],
+      targetModel: 'gpt-4o-mini',
+      eligibleShare: '0.50',
+      outputLengthRatio: '01',
+      tokenizerRatio: '1.0',
+      retryFallbackRate: '0.000',
+      routingOverheadTokens: 0,
+      calibrationPassRate: null,
+    }
+    const report = buildReport(summaryFor(), { ...inputs, routing }, '2026-10-29T12:00:00.000Z', null)
+    expect(report.calculationIdentity.inputs.routing?.sourceModels).toEqual(['gpt-4o', 'gpt-4o-mini'])
+    expect(report.calculationIdentity.inputs.routing?.eligibleShare).toBe('0.5')
+    expect(sha256Hex(canonicalJson(report.calculationIdentity.inputs))).toBe(report.calculationIdentity.sha256)
   })
 })

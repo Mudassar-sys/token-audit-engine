@@ -12,11 +12,14 @@ import {
   AuditRow,
   PricingSnapshot,
   type FrozenSnapshot,
+  type IdentityInputs,
+  type RoutingAssumptions,
   type NormalizedUsageRow,
   type ReportedAmount,
   type Tier,
   type VariantId,
 } from '../../src/engine/contracts'
+import { calculationIdentity } from '../../src/engine/identity'
 import { femtoToExactUsd, usdToFemto } from '../../src/engine/money'
 import { createPricingEngine } from '../../src/engine/pricing'
 
@@ -37,7 +40,7 @@ const MODELS = [
   'codestral/codestral-latest',
   'gemini-2.5-flash',
   'openai/gpt-4o',
-  'acme-unlisted-model-x',
+  'unlisted-model-x',
 ]
 
 const tokens = fc.nat({ max: 600_000 })
@@ -130,6 +133,80 @@ describe('pricing properties', () => {
         expect(agg.summary().totals.value.exactUsd).toBe(femtoToExactUsd(sum))
       }),
       { numRuns: 150 },
+    )
+  })
+
+  it('a bucket has no value exactly when no row in it is priced, is partial when it leaves rows out, and buckets sum to the total', () => {
+    fc.assert(
+      fc.property(fc.array(rowArb, { minLength: 0, maxLength: 60 }), (rows) => {
+        const agg = new Aggregator()
+        rows.forEach((r, i) => agg.add(engine.price({ ...r, rowIndex: i })))
+        const s = agg.summary()
+        for (const dim of [s.aggregates.byModel, s.aggregates.byProvider, s.aggregates.byDay, s.aggregates.byLabel]) {
+          let sum = 0n
+          for (const b of dim) {
+            const left = b.rowsNotPriced + b.rowsUnresolved
+            expect(b.valueUsd === null).toBe(left === b.rows)
+            expect(b.partial).toBe(left > 0)
+            if (b.valueUsd !== null) sum += usdToFemto(b.valueUsd)
+          }
+          expect(femtoToExactUsd(sum)).toBe(s.totals.value.exactUsd)
+        }
+      }),
+      { numRuns: 100 },
+    )
+  })
+})
+
+describe('calculation identity of routing assumptions', () => {
+  const base: IdentityInputs = {
+    inputFileSha256: 'a'.repeat(64),
+    mapping: null,
+    adapters: [{ id: 'litellm-spend', version: '1.0.0' }],
+    schemaVersion: 1,
+    snapshotSha256: 'b'.repeat(64),
+    baselineModel: null,
+    routing: null,
+    priceOverrides: [],
+    reportSettings: { displayDecimals: 6, aggregateKeyCap: 5000 },
+    engineVersion: '1.0.0',
+  }
+  const decimalArb = fc.tuple(fc.nat({ max: 99 }), fc.nat({ max: 999_999 })).map(([i, f]) => (f === 0 ? String(i) : `${i}.${String(f).padStart(6, '0').replace(/0+$/, '')}`))
+  /** The same decimal with extra leading and trailing zeros. */
+  const respell = (d: string, lead: number, trail: number) => `${'0'.repeat(lead)}${d}${d.includes('.') ? '' : '.'}${'0'.repeat(trail)}`.replace(/\.$/, '')
+
+  it('does not depend on list order, duplicates or zero padding', () => {
+    fc.assert(
+      fc.property(
+        fc.uniqueArray(fc.constantFrom(...MODELS), { maxLength: 6 }),
+        fc.uniqueArray(fc.constantFrom('<1k', '1k-10k', '10k-100k', '>=100k'), { maxLength: 4 }),
+        decimalArb,
+        decimalArb,
+        fc.nat({ max: 3 }),
+        fc.nat({ max: 3 }),
+        (models, bands, share, ratio, lead, trail) => {
+          const r: RoutingAssumptions = {
+            sourceModels: models,
+            inputBands: bands,
+            targetModel: 'gpt-4o-mini',
+            eligibleShare: share,
+            outputLengthRatio: ratio,
+            tokenizerRatio: '1',
+            retryFallbackRate: '0',
+            routingOverheadTokens: 0,
+            calibrationPassRate: null,
+          }
+          const shuffled: RoutingAssumptions = {
+            ...r,
+            sourceModels: [...models].reverse().concat(models.slice(0, 1)),
+            inputBands: [...bands].reverse(),
+            eligibleShare: respell(share, lead, trail),
+            outputLengthRatio: respell(ratio, trail, lead),
+          }
+          expect(calculationIdentity({ ...base, routing: shuffled })).toBe(calculationIdentity({ ...base, routing: r }))
+        },
+      ),
+      { numRuns: 200 },
     )
   })
 })

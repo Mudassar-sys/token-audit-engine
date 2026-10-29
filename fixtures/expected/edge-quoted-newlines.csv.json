@@ -18,7 +18,7 @@
     ],
     "excluded": {},
     "flags": [
-      "inclusion_assumed"
+      "inclusion_detected"
     ],
     "unresolvedReason": null,
     "counted": true,
@@ -49,7 +49,7 @@
     ],
     "excluded": {},
     "flags": [
-      "inclusion_assumed",
+      "inclusion_detected",
       "duration_assumed"
     ],
     "unresolvedReason": null,

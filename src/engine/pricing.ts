@@ -94,7 +94,7 @@ interface Line {
 }
 
 type Estimate =
-  | { ok: true; femto: bigint; applied: AppliedRate[]; formula: string; allZeroRates: boolean; notes: string[] }
+  | { ok: true; femto: bigint; applied: AppliedRate[]; formula: string; allZeroRates: boolean; notes: string[]; contextLine: string | null }
   | { ok: false; reason: string; notes: string[] }
 
 export interface PricingEngine {
@@ -112,6 +112,34 @@ function rawLookup(raw: Record<string, unknown>, name: string): unknown {
     if (k.endsWith(`.${name}`)) return v
   }
   return undefined
+}
+
+/**
+ * A tier stated in the source that has no rate in the snapshot (for example 'scale').
+ * The adapters keep it in raw.service_tier and leave tierStated null.
+ */
+export function unpricedStatedTier(row: NormalizedUsageRow): string | null {
+  if (row.tierStated !== null) return null
+  const tier = rawLookup(row.raw, 'service_tier')
+  return typeof tier === 'string' && tier.toLowerCase() === 'scale' ? 'scale' : null
+}
+
+/** Excluded input modalities. They are never priced but count toward the long context threshold. */
+export const THRESHOLD_ONLY_INPUT_KEYS = ['input_audio', 'input_image', 'input_video'] as const
+
+/**
+ * Full prompt size of a request as the provider counts it for the long context threshold:
+ * the priced input classes plus the excluded input modality tokens.
+ */
+export function contextInputTokens(row: NormalizedUsageRow): { total: number; priced: number; excluded: [string, number][] } {
+  const t = row.tokens
+  const priced = t.uncachedInput + t.cacheRead + t.cacheWrite['5m'] + t.cacheWrite['1h'] + t.cacheWrite['30m'] + t.cacheWrite['12h']
+  const excluded: [string, number][] = []
+  for (const k of THRESHOLD_ONLY_INPUT_KEYS) {
+    const v = row.excluded[k]
+    if (typeof v === 'number' && Number.isSafeInteger(v) && v > 0) excluded.push([k, v])
+  }
+  return { total: excluded.reduce((s, [, v]) => s + v, priced), priced, excluded }
 }
 
 /** Premium modes the snapshot has no rate for. Returns a Not priced reason or null. */
@@ -208,16 +236,23 @@ export function createPricingEngine(
     const premium = premiumReason(row)
     if (premium) return { ok: false, reason: premium, notes }
     const t = row.tokens
-    const writes = DURATIONS.reduce((s, d) => s + t.cacheWrite[d], 0)
 
     let ctx: number | null = null
+    let contextLine: string | null = null
     const thresholds = thresholdsFor(key)
     if (row.granularity === 'request') {
-      const totalInput = t.uncachedInput + t.cacheRead + writes
-      for (const th of thresholds) if (totalInput > th) ctx = th
+      // The threshold uses the full prompt size: excluded image, audio and video input
+      // tokens count toward it, but they stay out of the cost lines.
+      const size = contextInputTokens(row)
+      for (const th of thresholds) if (size.total > th) ctx = th
+      if (thresholds.length > 0 && size.excluded.length > 0) {
+        const parts = size.excluded.map(([k, v]) => `${formatTokens(v)} excluded.${k}`).join(' + ')
+        contextLine = `contextSize = ${formatTokens(size.priced)} priced input + ${parts} = ${formatTokens(size.total)} tokens (excluded tokens count toward the long context threshold only and are not priced)`
+      }
       if (ctx !== null) {
         pushFlag(flags, 'long_context_applied')
-        notes.push(`long context rates above ${formatTokens(ctx)} input tokens (${formatTokens(totalInput)} in this request)`)
+        const incl = size.excluded.length ? `, including ${formatTokens(size.total - size.priced)} excluded image, audio or video input tokens counted for the threshold only` : ''
+        notes.push(`long context rates above ${formatTokens(ctx)} input tokens (${formatTokens(size.total)} in this request${incl})`)
       }
     } else if (thresholds.length > 0) {
       pushFlag(flags, 'long_context_not_applied_bucket')
@@ -252,12 +287,23 @@ export function createPricingEngine(
     }
 
     const reasoning = t.reasoning
-    const hasReasoningRate = rates.has('output_cost_per_reasoning_token')
-    if (hasReasoningRate && reasoning !== null) {
+    const baseReasoning = rates.get('output_cost_per_reasoning_token')
+    if (baseReasoning !== undefined && reasoning !== null) {
       if (reasoning > t.output) return { ok: false, reason: 'reasoning tokens exceed output tokens', notes }
+      // Use the reasoning key composed for this tier and context size when the snapshot has it.
+      // When it has only the base reasoning rate and that equals the base output rate, reasoning
+      // is billed as output, so the composed output rate applies. Otherwise the composed reasoning
+      // key is required and its absence makes the row Not priced.
+      let reasoningCls: RateClass = 'output_cost_per_reasoning_token'
+      const composed = rateKey('output_cost_per_reasoning_token', '', ctx, tier)
+      if (reasoning > 0 && !rates.has(composed) && baseReasoning === rates.get('output_cost_per_token')) {
+        reasoningCls = 'output_cost_per_token'
+        notes.push(`reasoning tokens at the output rate (no ${composed} key; the base reasoning rate equals the base output rate)`)
+      } else {
+        notes.push('reasoning tokens at the reasoning rate')
+      }
       lines.push({ tokenClass: 'output', tokens: t.output - reasoning, cls: 'output_cost_per_token', ttl: '' })
-      lines.push({ tokenClass: 'reasoning', tokens: reasoning, cls: 'output_cost_per_reasoning_token', ttl: '' })
-      notes.push('reasoning tokens at the reasoning rate')
+      lines.push({ tokenClass: 'reasoning', tokens: reasoning, cls: reasoningCls, ttl: '' })
     } else {
       lines.push({ tokenClass: 'output', tokens: t.output, cls: 'output_cost_per_token', ttl: '' })
     }
@@ -287,8 +333,9 @@ export function createPricingEngine(
       })
       terms.push(`${formatTokens(line.tokens)} x $${femtoToExactUsd(r)}`)
     }
-    const formula = terms.length ? `${terms.join(' + ')} = $${femtoToExactUsd(total)}` : 'no billable tokens = $0'
-    return { ok: true, femto: total, applied, formula, allZeroRates: applied.length > 0 && allZero, notes }
+    let formula = terms.length ? `${terms.join(' + ')} = $${femtoToExactUsd(total)}` : 'no billable tokens = $0'
+    if (contextLine) formula += `; ${contextLine}`
+    return { ok: true, femto: total, applied, formula, allZeroRates: applied.length > 0 && allZero, notes, contextLine }
   }
 
   function price(row: NormalizedUsageRow): AuditRow {
@@ -296,7 +343,9 @@ export function createPricingEngine(
     const malformed = flags.includes('malformed')
     const resolution = resolveModel(row.modelLogged, models)
     const tierApplied: Tier = row.tierStated ?? 'standard'
-    if (row.tierStated === null && !malformed) pushFlag(flags, 'tier_assumed')
+    const unpricedTier = unpricedStatedTier(row)
+    const tierAssumed = row.tierStated === null && unpricedTier === null && !malformed
+    if (tierAssumed) pushFlag(flags, 'tier_assumed')
     if (row.modelLogged === null && !malformed) pushFlag(flags, 'model_missing')
 
     let est: Estimate
@@ -305,7 +354,7 @@ export function createPricingEngine(
       est = { ok: false, reason: row.modelLogged === null ? 'no model name in the row' : `model "${row.modelLogged}" is not in the snapshot`, notes: [] }
     } else est = estimate(row, resolution.key, tierApplied, flags)
 
-    if (row.tierStated === null && !malformed) est.notes.unshift('tier assumed standard')
+    if (tierAssumed) est.notes.unshift('tier assumed standard')
     const noteText = est.notes.length ? `; ${est.notes.join('; ')}` : ''
     const estimateUsd = est.ok ? femtoToExactUsd(est.femto) : null
     const estimateLabel: Label = est.ok
@@ -374,9 +423,11 @@ export function createPricingEngine(
 
     const cost: CostResult = { valueUsd, label, estimateUsd, estimateLabel, appliedRates: applied, formula }
 
-    const tierLabel: Label = row.tierStated === null
-      ? { kind: 'Estimated', reason: 'tier assumed: standard (not stated in source)' }
-      : { kind: 'Measured', reason: `stated in source: ${row.tierStated}` }
+    const tierLabel: Label = unpricedTier !== null
+      ? { kind: 'Measured', reason: `stated in source: ${unpricedTier}; the snapshot has no rate for this tier` }
+      : row.tierStated === null
+        ? { kind: 'Estimated', reason: 'tier assumed: standard (not stated in source)' }
+        : { kind: 'Measured', reason: `stated in source: ${row.tierStated}` }
     const modelLabel: Label = resolution.key === null
       ? { kind: 'Not priced', reason: resolution.match.detail }
       : { kind: 'Measured', reason: resolution.match.source ? `${resolution.match.detail} (source ${resolution.match.source})` : resolution.match.detail }
@@ -395,8 +446,11 @@ export function createPricingEngine(
       price: { kind: 'Estimated', reason: priceLabel(date) },
     }
 
+    const mapping = est.ok && est.contextLine ? [...row.mapping, est.contextLine] : row.mapping
+
     return {
       ...row,
+      mapping,
       flags,
       resolvedKey: resolution.key,
       match: resolution.match,

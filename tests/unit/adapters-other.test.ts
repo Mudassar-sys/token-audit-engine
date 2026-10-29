@@ -162,16 +162,18 @@ describe('LiteLLM spend logs (F)', () => {
     ...o,
   })
 
-  it('assumes the documented default (prompt_tokens includes cache) when no row proves otherwise', () => {
+  it('treats normalized call types as including cache in prompt_tokens (decided by the row, not assumed)', () => {
     const records = fixtureRecords('f-litellm-spend.csv', 'F-csv')
     const facts = litellmAdapter.scanFileFacts!(records)
-    expect(facts[LITELLM_INCLUSION_FACT]).toMatchObject({ mode: 'included', basis: 'assumed' })
+    expect(facts[LITELLM_INCLUSION_FACT]).toMatchObject({ mode: 'included', basis: 'detected', rowsExcluded: 0, rowsContradicting: 0 })
     const rows = runAdapter('F-csv', records)
     expect(rows[0]!.tokens.uncachedInput).toBe(86)
     expect(rows[0]!.tokens.cacheRead).toBe(1920)
-    expect(rows[0]!.flags).toContain('inclusion_assumed')
+    expect(rows[0]!.flags).toContain('inclusion_detected')
+    expect(rows[0]!.mapping.join('\n')).toContain('call_type acompletion')
     expect(rows[1]!.tokens).toEqual({ uncachedInput: 2048, cacheRead: 1800, cacheWrite: { '5m': 248, '1h': 0, '30m': 0, '12h': 0 }, output: 503, reasoning: null })
-    expect(rows[1]!.flags).toEqual(['inclusion_assumed', 'duration_assumed'])
+    expect(rows[1]!.flags).toEqual(['inclusion_detected', 'duration_assumed'])
+    expect(rows[5]!.modelLogged).toBe('unlisted-internal-model-q')
     expect(rows[2]!.flags).toEqual([])
     expect(rows[0]!.reported).toEqual({ amountUsd: '0.005615', field: 'spend', kind: 'gateway_estimate' })
     expect(rows[3]!.reported).toEqual({ amountUsd: '0', field: 'spend', kind: 'gateway_estimate' })
@@ -186,22 +188,72 @@ describe('LiteLLM spend logs (F)', () => {
     expect(r.mapping.join('\n')).toContain('metadata.usage_object.prompt_tokens_details.cache_write_tokens')
   })
 
-  it('detects exclusion when a row has more cached tokens than prompt_tokens', () => {
+  it('decides inclusion per row, so a pass-through Anthropic row never changes an OpenAI row in the same file', () => {
+    const passThrough = header({
+      request_id: 'req-pt',
+      call_type: 'pass_through_endpoint',
+      model: 'claude-sonnet-4-5',
+      custom_llm_provider: 'anthropic',
+      prompt_tokens: '10',
+      completion_tokens: '50',
+      metadata: JSON.stringify({ usage_object: { input_tokens: 10, output_tokens: 50, cache_read_input_tokens: 1800 } }),
+    })
+    const openai = header({
+      prompt_tokens: '2006',
+      completion_tokens: '300',
+      metadata: JSON.stringify({ additional_usage_values: { prompt_tokens_details: { cached_tokens: 1920 } } }),
+    })
+    const records = [csvRow(passThrough), csvRow(openai)]
+    const fact = scanLiteLlmInclusion(records)
+    expect(fact).toMatchObject({ mode: 'mixed', basis: 'detected', rowsWithCache: 2, rowsExcluded: 1, rowsContradicting: 0 })
+    const rows = runAdapter('F-csv', records)
+    expect(rows[0]!.tokens.uncachedInput).toBe(10)
+    expect(rows[0]!.tokens.cacheRead).toBe(1800)
+    expect(rows[0]!.flags).toContain('inclusion_detected')
+    expect(rows[0]!.unresolvedReason).toBeNull()
+    expect(rows[0]!.mapping.join('\n')).toContain('excludes cached tokens: call_type pass_through_endpoint')
+    // Priced at gpt-4o rates this is 86 + 1920 cached + 300 output = 0.005615, never 0.010415.
+    expect(rows[1]!.tokens).toEqual({ uncachedInput: 86, cacheRead: 1920, cacheWrite: { '5m': 0, '1h': 0, '30m': 0, '12h': 0 }, output: 300, reasoning: null })
+    expect(rows[1]!.unresolvedReason).toBeNull()
+    // Same outcome in the opposite order.
+    const reversed = runAdapter('F-csv', [csvRow(openai), csvRow(passThrough)])
+    expect(reversed[0]!.tokens.uncachedInput).toBe(86)
+    expect(reversed[1]!.tokens.uncachedInput).toBe(10)
+  })
+
+  it('reads raw Anthropic usage as excluding cache from call_type, route, api_base or usage shape', () => {
+    const cases: Record<string, string>[] = [
+      { call_type: 'anthropic_messages' },
+      { call_type: 'pass_through_endpoint' },
+      { call_type: '', api_base: 'http://proxy.internal/pass_through/anthropic' },
+      { call_type: '', metadata: JSON.stringify({ user_api_key_request_route: '/anthropic/v1/messages', additional_usage_values: { cache_read_input_tokens: 1800 } }) },
+      { call_type: '', metadata: JSON.stringify({ additional_usage_values: { input_tokens: 10, cache_read_input_tokens: 1800 } }) },
+    ]
+    for (const c of cases) {
+      const meta = c.metadata ?? JSON.stringify({ additional_usage_values: { cache_read_input_tokens: 1800 } })
+      const [row] = runAdapter('F-csv', [csvRow(header({ prompt_tokens: '10', ...c, metadata: meta }))])
+      expect(row!.tokens.uncachedInput).toBe(10)
+      expect(row!.tokens.cacheRead).toBe(1800)
+      expect(row!.flags).toEqual(['inclusion_detected'])
+      expect(row!.unresolvedReason).toBeNull()
+    }
+  })
+
+  it('marks a normalized row whose cache exceeds prompt_tokens Unresolved instead of switching the file', () => {
     const records = [
       csvRow(header({ prompt_tokens: '500', metadata: JSON.stringify({ additional_usage_values: { cache_read_input_tokens: 3000 } }) })),
       csvRow(header({ prompt_tokens: '400', metadata: JSON.stringify({ additional_usage_values: { cache_read_input_tokens: 100 } }) })),
       csvRow(header({ prompt_tokens: '400' })),
     ]
     const fact = scanLiteLlmInclusion(records)
-    expect(fact.mode).toBe('excluded')
-    expect(fact.basis).toBe('detected')
+    expect(fact).toMatchObject({ mode: 'included', basis: 'detected', rowsContradicting: 1, rowsExcluded: 0 })
     expect(fact.evidence).toContain('exceed prompt_tokens 500')
     const rows = runAdapter('F-csv', records)
-    expect(rows[0]!.tokens.uncachedInput).toBe(500)
-    expect(rows[0]!.tokens.cacheRead).toBe(3000)
-    expect(rows[1]!.tokens.uncachedInput).toBe(400)
-    expect(rows[1]!.flags).toContain('inclusion_detected')
-    expect(rows[2]!.flags).not.toContain('inclusion_detected')
+    expect(rows[0]!.flags).toContain('cache_exceeds_input')
+    expect(rows[0]!.unresolvedReason).toContain('contradicts')
+    expect(rows[1]!.tokens.uncachedInput).toBe(300)
+    expect(rows[1]!.unresolvedReason).toBeNull()
+    expect(rows[2]!.flags).toEqual([])
   })
 
   it('needs no decision when no row has cached tokens', () => {
@@ -209,15 +261,78 @@ describe('LiteLLM spend logs (F)', () => {
     expect(fact).toMatchObject({ mode: 'included', basis: 'no_cache_tokens', rowsWithCache: 0 })
   })
 
-  it('uses the assumed default without file facts and marks a contradicting row Unresolved', () => {
+  it('assumes the documented default only when the row type gives no signal, and marks a contradicting row Unresolved', () => {
     const run = litellmAdapter.begin({ variant: 'F-csv', mapping: null, fileFacts: {} })
-    const [ok] = run.push(csvRow(header({ prompt_tokens: '1000', metadata: '{"additional_usage_values":{"cache_read_input_tokens":400}}' })))
+    const [ok] = run.push(csvRow(header({ call_type: '', prompt_tokens: '1000', metadata: '{"additional_usage_values":{"cache_read_input_tokens":400}}' })))
     expect(ok!.tokens.uncachedInput).toBe(600)
     expect(ok!.flags).toContain('inclusion_assumed')
-    const [late] = run.push(csvRow(header({ prompt_tokens: '100', metadata: '{"additional_usage_values":{"cache_read_input_tokens":400}}' })))
+    const [late] = run.push(csvRow(header({ call_type: '', prompt_tokens: '100', metadata: '{"additional_usage_values":{"cache_read_input_tokens":400}}' })))
     expect(late!.flags).toContain('cache_exceeds_input')
     expect(late!.unresolvedReason).toContain('contradicts')
     expect(late!.tokens.uncachedInput).toBe(0)
+    const [shaped] = run.push(csvRow(header({ call_type: 'custom_call', prompt_tokens: '1000', metadata: '{"usage_object":{"prompt_tokens_details":{"cached_tokens":400}}}' })))
+    expect(shaped!.flags).toEqual(['inclusion_detected'])
+  })
+
+  it('splits cache writes by the logged lifetime breakdown and checks it against the total', () => {
+    const meta = (aux: Record<string, unknown>) => JSON.stringify({ additional_usage_values: aux })
+    const anth = { model: 'claude-sonnet-4-5', custom_llm_provider: 'anthropic', prompt_tokens: '3000' }
+    const [a] = runAdapter('F-csv', [
+      csvRow(header({ ...anth, metadata: meta({ cache_creation_input_tokens: 2000, prompt_tokens_details: { cache_creation_tokens: 2000, cache_creation_token_details: { ephemeral_5m_input_tokens: 0, ephemeral_1h_input_tokens: 2000 } } }) })),
+    ])
+    expect(a!.tokens.cacheWrite).toEqual({ '5m': 0, '1h': 2000, '30m': 0, '12h': 0 })
+    expect(a!.tokens.uncachedInput).toBe(1000)
+    expect(a!.flags).not.toContain('duration_assumed')
+    expect(a!.unresolvedReason).toBeNull()
+    expect(a!.mapping.join('\n')).toContain('cacheWrite.1h = metadata.additional_usage_values.prompt_tokens_details.cache_creation_token_details.ephemeral_1h_input_tokens')
+
+    const [b] = runAdapter('F-csv', [csvRow(header({ ...anth, metadata: meta({ cache_creation_input_tokens: 400, cache_creation: { ephemeral_5m_input_tokens: 100, ephemeral_1h_input_tokens: 300 } }) }))])
+    expect(b!.tokens.cacheWrite).toEqual({ '5m': 100, '1h': 300, '30m': 0, '12h': 0 })
+
+    const oa = { model: 'gpt-6.1-sol', custom_llm_provider: 'openai', prompt_tokens: '12000' }
+    const [c] = runAdapter('F-csv', [
+      csvRow(header({ ...oa, metadata: meta({ prompt_tokens_details: { cached_tokens: 4000, cache_write_tokens: 7000, cache_creation_token_details: { ephemeral_30m_input_tokens: 3000, ephemeral_12h_input_tokens: 4000 } } }) })),
+    ])
+    expect(c!.tokens).toMatchObject({ uncachedInput: 1000, cacheRead: 4000, cacheWrite: { '5m': 0, '1h': 0, '30m': 3000, '12h': 4000 } })
+
+    const [d] = runAdapter('F-csv', [
+      csvRow(header({ ...anth, metadata: meta({ cache_creation_input_tokens: 2000, prompt_tokens_details: { cache_creation_token_details: { ephemeral_5m_input_tokens: 500, ephemeral_1h_input_tokens: 1000 } } }) })),
+    ])
+    expect(d!.flags).toContain('totals_disagree')
+    expect(d!.unresolvedReason).toContain('sums to 1500')
+
+    const [e] = runAdapter('F-csv', [csvRow(header({ ...anth, metadata: meta({ cache_creation: { ephemeral_1h_input_tokens: 600 } }) }))])
+    expect(e!.tokens.cacheWrite['1h']).toBe(600)
+    expect(e!.tokens.uncachedInput).toBe(2400)
+  })
+
+  it('subtracts audio and image tokens and lists them with web search requests as excluded', () => {
+    const [r] = runAdapter('F-csv', [
+      csvRow(header({
+        model: 'gpt-4o-audio-preview',
+        prompt_tokens: '1000',
+        completion_tokens: '500',
+        metadata: JSON.stringify({
+          additional_usage_values: {
+            prompt_tokens_details: { cached_tokens: 100, audio_tokens: 800, image_tokens: 50 },
+            completion_tokens_details: { audio_tokens: 400, image_tokens: 20 },
+            server_tool_use: { web_search_requests: 2 },
+          },
+        }),
+      })),
+    ])
+    expect(r!.tokens.uncachedInput).toBe(50)
+    expect(r!.tokens.cacheRead).toBe(100)
+    expect(r!.tokens.output).toBe(80)
+    expect(r!.excluded).toEqual({ input_audio: 800, input_image: 50, output_audio: 400, output_image: 20, web_search_requests: 2 })
+    expect(r!.unresolvedReason).toBeNull()
+    expect(r!.mapping.join('\n')).toContain('excluded.web_search_requests = metadata.additional_usage_values.server_tool_use.web_search_requests')
+
+    const [bad] = runAdapter('F-csv', [
+      csvRow(header({ prompt_tokens: '100', completion_tokens: '10', metadata: JSON.stringify({ additional_usage_values: { completion_tokens_details: { audio_tokens: 40 } } }) })),
+    ])
+    expect(bad!.flags).toContain('totals_disagree')
+    expect(bad!.unresolvedReason).toContain('exceed completion_tokens')
   })
 
   it('marks disagreeing metadata fields, broken metadata and non-numeric counts', () => {
@@ -260,6 +375,13 @@ describe('LiteLLM spend logs (F)', () => {
     expect(rows[0]!.reported?.amountUsd).toBe('0.00243')
     expect(rows[3]!.modelLogged).toBeNull()
     expect(rows[3]!.flags).toContain('model_missing')
+    // A pass-through Anthropic row followed by a normalized OpenAI row in one file.
+    expect(rows[4]!.tokens).toMatchObject({ uncachedInput: 10, cacheRead: 1800 })
+    expect(rows[5]!.tokens).toMatchObject({ uncachedInput: 86, cacheRead: 1920, output: 300 })
+    expect(rows[6]!.tokens.cacheWrite).toEqual({ '5m': 0, '1h': 2000, '30m': 0, '12h': 0 })
+    expect(rows[7]!.excluded).toEqual({ input_audio: 800, output_audio: 400 })
+    expect(rows[7]!.tokens).toMatchObject({ uncachedInput: 200, output: 100 })
+    expect(rows[8]!.excluded).toEqual({ web_search_requests: 1 })
   })
 
   it('reports spend 0 as a gateway estimate of exactly 0 for both zero fixtures', () => {
@@ -397,6 +519,49 @@ describe('OpenTelemetry spans (G)', () => {
     const repeats = rows.slice(9)
     expect(repeats.every((r) => r.unresolvedReason?.includes('repeats an earlier span'))).toBe(true)
     expect(rows.slice(0, 9)).toEqual(rowsOf('g-otel-spans.json', 'G-otlp'))
+  })
+
+  const attr = (key: string, v: string | number) => ({ key, value: typeof v === 'number' ? { intValue: String(v) } : { stringValue: v } })
+  const span = (spanId: string, parentSpanId: string | null, op: string, extra: { key: string; value: unknown }[] = [], input = 1000, output = 100) => ({
+    traceId: 'bb', spanId, ...(parentSpanId ? { parentSpanId } : {}), name: `${op} ${spanId}`,
+    attributes: [attr('gen_ai.operation.name', op), attr('gen_ai.provider.name', 'openai'), attr('gen_ai.request.model', 'gpt-5.6-sol'), attr('gen_ai.usage.input_tokens', input), attr('gen_ai.usage.output_tokens', output), ...extra],
+  })
+  const runSpans = (spans: unknown[]) => runAdapter('G-otlp-jsonl', [json({ resourceSpans: [{ scopeSpans: [{ spans }] }] }, 1)])
+
+  it('reads stated service tiers like the OpenAI adapters: ultrafast, fast as priority, unknown values Unresolved', () => {
+    const tierRow = (tier: string, key = 'openai.response.service_tier') => runSpans([span('01', null, 'chat', [attr(key, tier)])])[0]!
+    const ultra = tierRow('ultrafast')
+    expect(ultra.tierStated).toBe('ultrafast')
+    expect(ultra.unresolvedReason).toBeNull()
+    expect(ultra.mapping).toContain('tier = ultrafast (openai.response.service_tier "ultrafast")')
+    expect(tierRow('fast').tierStated).toBe('priority')
+    expect(tierRow('default', 'gen_ai.openai.response.service_tier').tierStated).toBe('standard')
+    expect(tierRow('flex').tierStated).toBe('flex')
+    for (const unknown of ['batch', 'weird']) {
+      const r = tierRow(unknown)
+      expect(r.tierStated).toBeNull()
+      expect(r.unresolvedReason).toBe(`unknown openai.response.service_tier "${unknown}"; no documented tier mapping`)
+    }
+    const scale = tierRow('scale')
+    expect(scale.tierStated).toBeNull()
+    expect(scale.raw.service_tier).toBe('scale')
+    expect(scale.unresolvedReason).toBeNull()
+    const auto = tierRow('auto')
+    expect(auto.tierStated).toBeNull()
+    expect(auto.unresolvedReason).toBeNull()
+    const none = runSpans([span('01', null, 'chat')])[0]!
+    expect(none.tierStated).toBeNull()
+    expect(none.mapping.some((m) => m.startsWith('tier'))).toBe(false)
+  })
+
+  it('leaves fetch_response usage out of the aggregate reconciliation sum', () => {
+    const rows = runSpans([span('a1', null, 'invoke_agent'), span('c1', 'a1', 'chat'), span('f1', 'a1', 'fetch_response')])
+    const agent = byName(rows, 'invoke_agent a1')
+    expect(agent.flags).toEqual(['aggregate_span'])
+    expect(agent.mapping.join('\n')).toContain('sum of 1 counted descendant span(s): input 1000, output 100 (match); 1 fetch_response span(s) with usage left out of the sum')
+    expect(byName(rows, 'fetch_response f1').unresolvedReason).toContain('fetch_response')
+    const mismatch = runSpans([span('a1', null, 'invoke_agent', [], 2000, 200), span('c1', 'a1', 'chat'), span('f1', 'a1', 'fetch_response')])
+    expect(byName(mismatch, 'invoke_agent a1').flags).toContain('aggregate_mismatch')
   })
 
   it('makes a span with an invalid count malformed and keeps the rest', () => {

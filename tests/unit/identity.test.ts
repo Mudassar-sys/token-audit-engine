@@ -3,6 +3,7 @@ import type { IdentityInputs } from '../../src/engine/contracts'
 import {
   adapterList,
   calculationIdentity,
+  canonicalIdentityInputs,
   canonicalJson,
   createIncrementalSha256,
   sha256Hex,
@@ -111,6 +112,22 @@ describe('calculationIdentity', () => {
     const hashes = variants.map(calculationIdentity)
     for (const h of hashes) expect(h).not.toBe(a)
     expect(new Set(hashes).size).toBe(hashes.length)
+  })
+
+  it('routing assumptions hash the same whatever the tick order or decimal spelling', () => {
+    const r = { ...routing, sourceModels: ['gpt-4o', 'claude-haiku-5-5'], inputBands: ['<1k', '>=100k'] }
+    const a = calculationIdentity({ ...base, routing: r })
+    expect(calculationIdentity({ ...base, routing: { ...r, sourceModels: ['claude-haiku-5-5', 'gpt-4o'] } })).toBe(a)
+    expect(calculationIdentity({ ...base, routing: { ...r, inputBands: ['>=100k', '<1k', '<1k'] } })).toBe(a)
+    expect(calculationIdentity({ ...base, routing: { ...r, eligibleShare: '0.50', retryFallbackRate: '0.020', tokenizerRatio: '1.0' } })).toBe(a)
+    expect(calculationIdentity({ ...base, routing: { ...r, outputLengthRatio: '01' } })).toBe(a)
+    // A different set or value still changes the hash.
+    expect(calculationIdentity({ ...base, routing: { ...r, sourceModels: ['gpt-4o'] } })).not.toBe(a)
+    expect(calculationIdentity({ ...base, routing: { ...r, eligibleShare: '0.05' } })).not.toBe(a)
+    // The canonical inputs hash to the identity with plain canonical JSON, so a reviewer can recompute it.
+    const inputs = canonicalIdentityInputs({ ...base, routing: { ...r, sourceModels: ['gpt-4o', 'claude-haiku-5-5'], eligibleShare: '0.500' } })
+    expect(inputs.routing).toMatchObject({ sourceModels: ['claude-haiku-5-5', 'gpt-4o'], inputBands: ['<1k', '>=100k'], eligibleShare: '0.5' })
+    expect(sha256Hex(canonicalJson(inputs))).toBe(a)
   })
 
   it('the export time is not an input', () => {

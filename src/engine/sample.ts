@@ -84,12 +84,12 @@ const MODELS: readonly ModelSpec[] = [
   { model: 'claude-haiku-4-5', provider: 'anthropic', weight: 12, rates: { input: '0.000001', output: '0.000005', read: '0.0000001', write: '0.00000125' }, cache: 'anthropic', writes: true, reasoning: false },
   { model: 'gemini-2.5-flash', provider: 'gemini', weight: 9, rates: { input: '0.0000003', output: '0.0000025', read: '0.00000003', write: '0' }, cache: 'openai', writes: false, reasoning: true },
   { model: 'codestral/codestral-latest', provider: 'codestral', weight: 8, rates: { input: '0', output: '0', read: '0', write: '0' }, cache: 'none', writes: false, reasoning: false },
-  { model: 'acme-unlisted-model-x', provider: 'openai', weight: 1, rates: { input: '0.000001', output: '0.000004', read: '0', write: '0' }, cache: 'none', writes: false, reasoning: false },
+  { model: 'unlisted-model-x', provider: 'openai', weight: 1, rates: { input: '0.000001', output: '0.000004', read: '0', write: '0' }, cache: 'none', writes: false, reasoning: false },
   { model: 'internal-finetune-v3', provider: 'hosted_vllm', weight: 1, rates: { input: '0.0000005', output: '0.0000015', read: '0', write: '0' }, cache: 'none', writes: false, reasoning: false },
 ]
 
 /** Model ids in the sample that the pricing snapshot does not list. */
-export const SAMPLE_UNKNOWN_MODELS = ['acme-unlisted-model-x', 'internal-finetune-v3'] as const
+export const SAMPLE_UNKNOWN_MODELS = ['unlisted-model-x', 'internal-finetune-v3'] as const
 
 const WEIGHT_TOTAL = MODELS.reduce((s, m) => s + m.weight, 0)
 

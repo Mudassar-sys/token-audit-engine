@@ -6,6 +6,7 @@ import { sha256Hex } from '../../src/engine/identity'
 import { usdToFemto, femtoToExactUsd } from '../../src/engine/money'
 import { runImport, type ImportOptions, type RowSink } from '../../src/engine/pipeline'
 import { generateSampleChunks } from '../../src/engine/sample'
+import { fixtureRecords, fixtureText, runAdapter } from './helpers/otherFixtures'
 import { TEST_META, TEST_SNAPSHOT } from './helpers/testSnapshot'
 
 /** Tiny adapter for A-jsonl test records: { model, prompt, cached, completion }. */
@@ -65,11 +66,45 @@ const fakeAdapter: Adapter = {
   },
 }
 
+/**
+ * Adapter that, like the OTLP one, emits every row in finish(). Each row logs 'price' when the
+ * pipeline reads it for pricing; sinks log 'write', so tests can see how the two interleave.
+ */
+const endLog: string[] = []
+const endRows: { count: number } = { count: 0 }
+const endAdapter: Adapter = {
+  source: 'B',
+  id: 'fake-end',
+  version: '0.0.1',
+  variants: ['B-jsonl'],
+  label: 'test end adapter',
+  score: () => ({ score: 1, reason: 'test' }),
+  begin(ctx) {
+    const template = fakeAdapter.begin({ ...ctx, variant: 'A-jsonl' }).push({ kind: 'json', value: { model: 'gpt-4o', prompt: 2006, cached: 1920, completion: 300 }, line: 1 })[0]!
+    return {
+      push: () => [],
+      finish() {
+        return Array.from({ length: endRows.count }, () => {
+          const row: AdapterRow = { ...template, variant: ctx.variant, mapping: [...template.mapping] }
+          Object.defineProperty(row, 'modelLogged', {
+            enumerable: true,
+            get() {
+              endLog.push('price')
+              return 'gpt-4o'
+            },
+          })
+          return row
+        })
+      },
+    }
+  },
+}
+
 vi.mock('../../src/engine/adapters/index', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../src/engine/adapters/index')>()
   return {
     ...actual,
-    adapterForVariant: (v: VariantId) => (v === 'A-jsonl' ? fakeAdapter : actual.adapterForVariant(v)),
+    adapterForVariant: (v: VariantId) => (v === 'A-jsonl' ? fakeAdapter : v === 'B-jsonl' ? endAdapter : actual.adapterForVariant(v)),
   }
 })
 
@@ -101,7 +136,7 @@ class MemorySink implements RowSink {
 function jsonlFile(n: number, extra: string[] = []): Blob {
   const lines: string[] = []
   for (let i = 0; i < n; i++) {
-    lines.push(JSON.stringify(i % 3 === 0 ? { model: 'gpt-4o', prompt: 2006, cached: 1920, completion: 300 } : i % 3 === 1 ? { model: 'acme-unlisted-model-x', prompt: 10, cached: 0, completion: 5 } : { model: 'gpt-4o-mini', prompt: 1000, cached: 0, completion: 100 }))
+    lines.push(JSON.stringify(i % 3 === 0 ? { model: 'gpt-4o', prompt: 2006, cached: 1920, completion: 300 } : i % 3 === 1 ? { model: 'unlisted-model-x', prompt: 10, cached: 0, completion: 5 } : { model: 'gpt-4o-mini', prompt: 1000, cached: 0, completion: 100 }))
   }
   return new Blob([[...lines, ...extra].join('\n') + '\n'])
 }
@@ -190,6 +225,49 @@ describe('runImport', () => {
     const sink = new MemorySink()
     await expect(runImport(options({ file: jsonlFile(5), sink, signal: ac.signal }))).rejects.toMatchObject({ name: 'AbortError' })
     expect(sink.writes).toBe(0)
+  })
+
+  it('prices and writes rows emitted at the end one batch at a time', async () => {
+    endLog.length = 0
+    endRows.count = 1000
+    const sink = new MemorySink(0, () => endLog.push('write'))
+    const summary = await runImport(options({ file: jsonlFile(3), sink, variant: 'B-jsonl', detection: { ...detection, variant: 'B-jsonl' }, batchSize: 100 }))
+    expect(summary.coverage.totalRows).toBe(1000)
+    expect(sink.rows.map((r) => r.rowIndex)).toEqual(Array.from({ length: 1000 }, (_, i) => i))
+    expect(sink.writes).toBe(10)
+    // No more than one batch is priced before it goes to the write queue.
+    expect(endLog.indexOf('write')).toBe(100)
+    let run = 0
+    for (const e of endLog) {
+      run = e === 'price' ? run + 1 : 0
+      expect(run).toBeLessThanOrEqual(100)
+    }
+  })
+
+  it('a cancel is received while rows emitted at the end are being priced and written', async () => {
+    endRows.count = 60_000
+    const ac = new AbortController()
+    const sink = new MemorySink(0, (n) => {
+      if (n === 1) setTimeout(() => ac.abort(), 0)
+    })
+    const p = runImport(options({ file: jsonlFile(3), sink, variant: 'B-jsonl', detection: { ...detection, variant: 'B-jsonl' }, batchSize: 500, signal: ac.signal }))
+    await expect(p).rejects.toMatchObject({ name: 'AbortError' })
+    expect(sink.rows.length).toBeLessThan(60_000)
+  })
+
+  it('imports a single-document OTLP export span by span with the real adapter', async () => {
+    const sink = new MemorySink()
+    const text = fixtureText('g-otel-spans.json')
+    const file = new Blob([text])
+    const summary = await runImport(options({ file, sink, fileName: 'g-otel-spans.json', variant: 'G-otlp', detection: { ...detection, variant: 'G-otlp' }, batchSize: 2 }))
+    const expected = runAdapter('G-otlp', fixtureRecords('g-otel-spans.json', 'G-otlp'))
+    expect(expected.length).toBeGreaterThan(0)
+    const view = (r: AdapterRow) => ({ tokens: r.tokens, raw: r.raw, counted: r.counted, modelLogged: r.modelLogged, timestamp: r.timestamp })
+    expect(sink.rows.map(view)).toEqual(expected.map(view))
+    // Pricing may add its own flags; the adapter's flags are all kept.
+    sink.rows.forEach((r, i) => expect(r.flags).toEqual(expect.arrayContaining(expected[i]!.flags)))
+    expect(summary.coverage.totalRows).toBe(expected.length)
+    expect(summary.inputFileSha256).toBe(sha256Hex(new Uint8Array(await file.arrayBuffer())))
   })
 
   it('imports a generated LiteLLM spend log CSV with the real adapter and multibyte-safe chunking', async () => {

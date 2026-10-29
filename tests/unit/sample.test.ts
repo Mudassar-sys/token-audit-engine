@@ -85,6 +85,13 @@ describe('generateSampleChunks', () => {
       expect(models.has(m)).toBe(true)
       expect(TEST_SNAPSHOT.models[m]).toBeDefined()
     }
+    expect([...SAMPLE_UNKNOWN_MODELS]).toEqual(['unlisted-model-x', 'internal-finetune-v3'])
+    for (const m of SAMPLE_UNKNOWN_MODELS) {
+      expect(models.has(m)).toBe(true)
+      expect(TEST_SNAPSHOT.models[m]).toBeUndefined()
+    }
+    // Synthetic model names are neutral: no made-up company names.
+    expect(text).not.toMatch(/acme/i)
     const unknown = rows.filter((r) => (SAMPLE_UNKNOWN_MODELS as readonly string[]).includes(r.model ?? ''))
     expect(unknown.length / rows.length).toBeGreaterThan(0.005)
     expect(unknown.length / rows.length).toBeLessThan(0.05)

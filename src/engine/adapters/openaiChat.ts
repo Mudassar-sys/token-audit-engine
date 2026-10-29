@@ -292,12 +292,27 @@ export function hasChatUsage(v: unknown): v is Record<string, unknown> & { usage
   return isObject(v) && isObject(v.usage) && (v.usage.prompt_tokens !== undefined || v.usage.completion_tokens !== undefined)
 }
 
+const CHAT_OBJECTS: readonly unknown[] = ['chat.completion', 'chat.completion.chunk']
+
+/**
+ * Why a record with prompt_tokens is not a chat completion for detection, or null when it may be one.
+ * An embeddings response ({"object":"list","usage":{"prompt_tokens","total_tokens"}}) has another
+ * object name and no completion_tokens; it is not a supported variant.
+ */
+export function notChatCompletion(v: Record<string, unknown> & { usage: Record<string, unknown> }): string | null {
+  if (v.object !== undefined && !CHAT_OBJECTS.includes(v.object)) return `object ${JSON.stringify(v.object)} is not a chat completion`
+  if (v.usage.completion_tokens === undefined) return 'usage has no completion_tokens, so it is not chat completion usage'
+  return null
+}
+
 function scoreChat(sample: RawRecord): { score: number; reason: string } {
   if (sample.kind !== 'json') return { score: 0, reason: 'not a JSON record' }
   const v = sample.value
   if (!hasChatUsage(v)) return { score: 0, reason: 'no usage.prompt_tokens or usage.completion_tokens' }
+  const notChat = notChatCompletion(v)
+  if (notChat) return { score: 0, reason: notChat }
   const hints = routingHints(v)
-  const isChat = v.object === 'chat.completion' || v.object === 'chat.completion.chunk'
+  const isChat = v.object !== undefined
   if (hints.length > 0) return { score: isChat ? 0.5 : 0.4, reason: `chat completion usage, but ${hints.join(', ')} point to a router` }
   if (isChat) return { score: 0.95, reason: `object ${String(v.object)} with usage.prompt_tokens` }
   return { score: 0.7, reason: 'usage.prompt_tokens and completion_tokens without an object field' }
@@ -306,7 +321,7 @@ function scoreChat(sample: RawRecord): { score: number; reason: string } {
 const CHAT_OPTIONS: ChatUsageOptions = {
   provider: 'openai',
   writeDuration: '30m',
-  writeDurationNote: 'Chat Completions has no TTL breakdown and accepts only ttl 30m',
+  writeDurationNote: 'Chat Completions usage does not report the cache TTL, so 30m is assumed; the cost is a lower bound if 12h breakpoints were used',
   readTier: true,
 }
 

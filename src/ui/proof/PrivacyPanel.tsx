@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useId, useState } from 'react'
 import { PRIVACY_LINE } from '../appState'
+import { SECURITY_HEADERS, cspDirectives } from './policy'
 
 interface Observed {
   name: string
@@ -40,8 +41,31 @@ export function PrivacyPanel() {
         <li>Files are read in this browser tab by a background worker. Parsing, pricing, totals and exports all run here.</li>
         <li>Imported rows are stored in this browser's local database so the table can page through them. Clear local data on the Import page deletes them.</li>
         <li>The page fetches only its own files: the app code, the pricing snapshot and its manifest, and recorded benchmark results.</li>
-        <li>The site sends a content security policy that only allows requests to its own origin.</li>
+        <li>
+          The site sends a content security policy. Network requests may go only to its own origin. Workers may also start from local blob: URLs, and
+          images may also come from inline data: URLs. Neither of those makes a network request.
+        </li>
         <li>There are no analytics, no cookies and no third-party scripts.</li>
+      </ul>
+
+      <h3>Content security policy</h3>
+      <p>These are the exact directives the site sends with every page.</p>
+      <ul className="policy" data-testid="csp-directives">
+        {cspDirectives().map((d) => (
+          <li key={d}>
+            <code>{d}</code>
+          </li>
+        ))}
+      </ul>
+      <h3>Other headers</h3>
+      <ul className="policy" data-testid="security-headers">
+        {SECURITY_HEADERS.filter((h) => h.key !== 'Content-Security-Policy').map((h) => (
+          <li key={h.key}>
+            <code>
+              {h.key}: {h.value}
+            </code>
+          </li>
+        ))}
       </ul>
 
       <h3>Requests this page has made</h3>

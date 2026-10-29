@@ -229,6 +229,52 @@ describe('Usage API totals versus breakdowns', () => {
     expect(row.tokens.uncachedInput).toBe(500)
   })
 
+  it('write total with a null 30m part and a stated 12h part: 30m is derived, the 12h tokens stay 12h', () => {
+    const row = one(openaiUsageAdapter, 'C-page', result({
+      input_tokens: 1000, input_cached_tokens: 0, input_cache_write_tokens: 100, input_cache_write_30m_tokens: null, input_cache_write_12h_tokens: 25,
+    }))
+    expect(row.tokens.cacheWrite).toEqual({ '5m': 0, '1h': 0, '30m': 75, '12h': 25 })
+    expect(row.flags).toEqual([])
+    expect(row.unresolvedReason).toBeNull()
+    expect(row.tokens.uncachedInput).toBe(900)
+    expect(row.mapping.join('\n')).toContain('input_cache_write_tokens (100) - input_cache_write_12h_tokens (25) = 75, derived because input_cache_write_30m_tokens is null')
+  })
+
+  it('write total with a stated 30m part and no 12h part: 12h is derived', () => {
+    const row = one(openaiUsageAdapter, 'C-page', result({ input_tokens: 1000, input_cached_tokens: 0, input_cache_write_tokens: 100, input_cache_write_30m_tokens: 60 }))
+    expect(row.tokens.cacheWrite).toEqual({ '5m': 0, '1h': 0, '30m': 60, '12h': 40 })
+    expect(row.flags).toEqual([])
+    expect(row.mapping.join('\n')).toContain('derived because input_cache_write_12h_tokens is absent')
+  })
+
+  it('write total with no TTL part at all still assumes 30m with duration_assumed', () => {
+    const row = one(openaiUsageAdapter, 'C-page', result({ input_tokens: 1000, input_cached_tokens: 0, input_cache_write_tokens: 100, input_cache_write_30m_tokens: null }))
+    expect(row.tokens.cacheWrite['30m']).toBe(100)
+    expect(row.flags).toEqual(['duration_assumed'])
+  })
+
+  it('cached total absent: the cache read total is derived from input, write and uncached totals', () => {
+    const row = one(openaiUsageAdapter, 'C-page', result({
+      input_tokens: 1000,
+      input_cache_write_tokens: 100,
+      input_cache_write_30m_tokens: 100,
+      input_cache_write_12h_tokens: 0,
+      input_uncached_tokens: 500,
+    }))
+    expect(row.tokens.uncachedInput).toBe(500)
+    expect(row.tokens.cacheRead).toBe(400)
+    expect(row.notMeasured).toEqual(['reasoning'])
+    expect(row.flags).toEqual([])
+    expect(row.mapping.join('\n')).toContain('cache read total derived as result.input_tokens (1000) - input_cache_write total (100) - input_uncached_tokens (500) = 400')
+  })
+
+  it('cached and write totals absent: an input_uncached_tokens that differs from input_tokens is still flagged', () => {
+    const row = one(openaiUsageAdapter, 'C-page', result({ input_tokens: 1000, input_uncached_tokens: 500 }))
+    expect(row.flags).toContain('totals_disagree')
+    expect(row.unresolvedReason).toMatch(/input_uncached_tokens \(500\) differs/)
+    expect(row.notMeasured).toEqual(['cacheRead', 'cacheWrite', 'reasoning'])
+  })
+
   it('cache totals above input => cache_exceeds_input', () => {
     const row = one(openaiUsageAdapter, 'C-page', result({ input_tokens: 100, input_cached_tokens: 90, input_cache_write_tokens: 20 }))
     expect(row.flags).toContain('cache_exceeds_input')
@@ -347,6 +393,17 @@ describe('chat and responses details', () => {
     expect(row.mapping.some((m) => m.startsWith('cacheWrite.30m = usage.prompt_tokens_details.cache_write_tokens (5000)'))).toBe(true)
   })
 
+  it('chat write note says the TTL is not reported and 30m is a lower bound, never that only 30m is accepted', () => {
+    const row = one(openaiChatAdapter, 'A-json', {
+      object: 'chat.completion', model: 'gpt-6.1-sol', usage: { prompt_tokens: 5000, completion_tokens: 10, prompt_tokens_details: { cache_write_tokens: 4000 } },
+    })
+    const line = row.mapping.find((m) => m.startsWith('cacheWrite.30m'))!
+    expect(line).toContain('does not report the cache TTL, so 30m is assumed')
+    expect(line).toContain('lower bound if 12h breakpoints were used')
+    expect(line).not.toContain('accepts only')
+    expect(row.flags).toEqual(['duration_assumed'])
+  })
+
   it('service tiers: default, flex, priority, scale, auto, absent, unknown', () => {
     const tierOf = (service_tier: unknown) => one(openaiChatAdapter, 'A-json', {
       object: 'chat.completion', model: 'gpt-4o', service_tier, usage: { prompt_tokens: 1, completion_tokens: 1 },
@@ -397,6 +454,23 @@ describe('OpenRouter reported charge', () => {
     expect(row.reported).toEqual({ amountUsd: '19.95', field: 'usage.cost + usage.cost_details.upstream_inference_cost', kind: 'charge' })
     const exact = one(openrouterAdapter, 'E-json', base({ cost: 0.1, is_byok: true, cost_details: { upstream_inference_cost: 0.2 } }))
     expect(exact.reported?.amountUsd).toBe('0.3')
+  })
+
+  it('documented usage example without is_byok: a positive upstream cost is added, mapping says is_byok was absent', () => {
+    const doc = {
+      id: 'gen-doc', model: 'anthropic/claude-sonnet-4.5',
+      usage: { prompt_tokens: 194, completion_tokens: 2, total_tokens: 196, cost: 0.95, cost_details: { upstream_inference_cost: 19 }, prompt_tokens_details: { cached_tokens: 0, cache_write_tokens: 100 } },
+    }
+    const row = one(openrouterAdapter, 'E-json', doc)
+    expect(row.reported).toEqual({ amountUsd: '19.95', field: 'usage.cost + usage.cost_details.upstream_inference_cost', kind: 'charge' })
+    expect(row.unresolvedReason).toBeNull()
+    expect(row.mapping.join('\n')).toContain('usage.is_byok absent; upstream_inference_cost is above 0')
+    expect(one(openrouterAdapter, 'E-json', base({ cost: 0.95, is_byok: null, cost_details: { upstream_inference_cost: 19 } })).reported?.amountUsd).toBe('19.95')
+  })
+
+  it('is_byok absent with upstream 0 or null: usage.cost alone', () => {
+    expect(one(openrouterAdapter, 'E-json', base({ cost: 0.0012, cost_details: { upstream_inference_cost: 0 } })).reported).toEqual({ amountUsd: '0.0012', field: 'usage.cost', kind: 'charge' })
+    expect(one(openrouterAdapter, 'E-json', base({ cost: 0.0012, cost_details: { upstream_inference_cost: null } })).reported).toEqual({ amountUsd: '0.0012', field: 'usage.cost', kind: 'charge' })
   })
 
   it('not BYOK: usage.cost alone, even when upstream is present', () => {
@@ -513,6 +587,24 @@ describe('score() on samples', () => {
     const msg = json({ type: 'message', role: 'assistant', model: 'claude-sonnet-4-5', usage: { input_tokens: 10, output_tokens: 5 } })
     expect(openaiResponsesAdapter.score(msg).score).toBeLessThan(0.2)
     expect(openaiChatAdapter.score(msg).score).toBe(0)
+  })
+
+  it('embeddings responses and embeddings usage pages score 0, so they are not taken for chat or completions usage', () => {
+    const embedding = json({ object: 'list', data: [{ object: 'embedding', index: 0, embedding: [0.1, 0.2] }], model: 'text-embedding-3-small', usage: { prompt_tokens: 8000, total_tokens: 8000 } })
+    for (const a of all) expect(a.score(embedding).score, a.id).toBe(0)
+    expect(openaiChatAdapter.score(embedding).reason).toBe('object "list" is not a chat completion')
+    const noObject = json({ model: 'text-embedding-3-small', usage: { prompt_tokens: 8000, total_tokens: 8000 } })
+    expect(openaiChatAdapter.score(noObject).score).toBe(0)
+    expect(openrouterAdapter.score(noObject).score).toBe(0)
+    const page = json({
+      object: 'page',
+      data: [{ object: 'bucket', start_time: 1792800000, end_time: 1792886400, results: [{ object: 'organization.usage.embeddings.result', input_tokens: 16000, num_model_requests: 2, model: 'text-embedding-3-small' }] }],
+    })
+    expect(openaiUsageAdapter.score(page).score).toBe(0)
+    // A chat completion keeps its scores.
+    const chat = json({ object: 'chat.completion', model: 'gpt-4o', usage: { prompt_tokens: 10, completion_tokens: 2 } })
+    expect(openaiChatAdapter.score(chat).score).toBe(0.95)
+    expect(openaiChatAdapter.score(json({ model: 'gpt-4o', usage: { prompt_tokens: 10, completion_tokens: 2 } })).score).toBe(0.7)
   })
 
   it('CSV rows and non-usage JSON score 0', () => {

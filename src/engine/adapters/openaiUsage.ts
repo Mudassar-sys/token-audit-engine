@@ -89,6 +89,19 @@ export function normalizeUsageResult(result: unknown, bucket: Record<string, unk
     } else if (w12 !== null && w12 === writeTotalField) {
       cacheWrite['12h'] = w12
       notes.mapping.push(`cacheWrite.12h = result.input_cache_write_12h_tokens (${w12}), equal to input_cache_write_tokens`)
+    } else if (w30 === null && w12 !== null && w12 < writeTotalField) {
+      // The 30m part may be null on older data; total = 30m + 12h, so it follows from the other two.
+      cacheWrite['12h'] = w12
+      cacheWrite['30m'] = writeTotalField - w12
+      notes.mapping.push(
+        `cacheWrite.12h = result.input_cache_write_12h_tokens (${w12}); cacheWrite.30m = result.input_cache_write_tokens (${writeTotalField}) - input_cache_write_12h_tokens (${w12}) = ${writeTotalField - w12}, derived because input_cache_write_30m_tokens is ${result.input_cache_write_30m_tokens === null ? 'null' : 'absent'}`,
+      )
+    } else if (w12 === null && w30 !== null && w30 < writeTotalField) {
+      cacheWrite['30m'] = w30
+      cacheWrite['12h'] = writeTotalField - w30
+      notes.mapping.push(
+        `cacheWrite.30m = result.input_cache_write_30m_tokens (${w30}); cacheWrite.12h = result.input_cache_write_tokens (${writeTotalField}) - input_cache_write_30m_tokens (${w30}) = ${writeTotalField - w30}, derived because input_cache_write_12h_tokens is ${result.input_cache_write_12h_tokens === null ? 'null' : 'absent'}`,
+      )
     } else {
       if (sum([w30, w12]) > writeTotalField) {
         notes.unresolved(`input_cache_write_30m/12h_tokens (${sum([w30, w12])}) exceed input_cache_write_tokens (${writeTotalField})`, 'totals_disagree')
@@ -110,6 +123,20 @@ export function normalizeUsageResult(result: unknown, bucket: Record<string, unk
     notes.missing('cacheWrite', 'cacheWrite = not measured (input_cache_write_tokens absent and the 30m/12h breakdown incomplete)')
   }
 
+  // Cache read total from the documented identity input = cached + write + uncached, when the
+  // cached total and its full breakdown are both missing but the other three totals are stated.
+  let readDerived = false
+  if (readTotal === null && input !== null && writeTotal !== null && uncachedTotal !== null) {
+    const derived = input - writeTotal - uncachedTotal
+    if (derived >= 0) {
+      readTotal = derived
+      readDerived = true
+      if (sum(cachedParts) > derived) {
+        notes.unresolved(`input_cached_text/audio/image_tokens (${sum(cachedParts)}) exceed the derived cache read total (${derived})`, 'totals_disagree')
+      }
+    }
+  }
+
   // Uncached input: total minus cache read total minus cache write total, never minus a breakdown.
   let uncachedInput = 0
   if (input === null) {
@@ -118,7 +145,8 @@ export function normalizeUsageResult(result: unknown, bucket: Record<string, unk
     const uncachedAll = input - (readTotal ?? 0) - (writeTotal ?? 0)
     if (uncachedAll < 0) {
       notes.unresolved('cache read and cache write totals exceed result.input_tokens', 'cache_exceeds_input')
-    } else if (uncachedTotal !== null && readTotal !== null && writeTotal !== null && uncachedTotal !== uncachedAll) {
+    } else if (uncachedTotal !== null && uncachedTotal !== uncachedAll) {
+      // Checked even when a cache total is not measured: a missing total then counts as 0 here.
       notes.unresolved(`input_uncached_tokens (${uncachedTotal}) differs from input_tokens - cache read total - cache write total (${uncachedAll})`, 'totals_disagree')
     }
     if (uncachedTotal !== null && complete(uncachedParts) && sum(uncachedParts) !== uncachedTotal) {
@@ -142,7 +170,11 @@ export function normalizeUsageResult(result: unknown, bucket: Record<string, unk
     notes.missing('cacheRead', 'cacheRead = not measured (input_cached_tokens absent and the modality breakdown incomplete)')
   } else {
     const text = readTotal - sum([cachedAudio, cachedImage])
-    const src = cachedTotal !== null ? `result.input_cached_tokens (${readTotal})` : `sum of input_cached_text/audio/image_tokens (${readTotal})`
+    const src = cachedTotal !== null
+      ? `result.input_cached_tokens (${readTotal})`
+      : readDerived
+        ? `cache read total derived as result.input_tokens (${input}) - input_cache_write total (${writeTotal}) - input_uncached_tokens (${uncachedTotal}) = ${readTotal}, input_cached_tokens absent`
+        : `sum of input_cached_text/audio/image_tokens (${readTotal})`
     notes.mapping.push(sum([cachedAudio, cachedImage]) > 0 ? `cacheRead = ${src} - cached audio and image (${sum([cachedAudio, cachedImage])}) = ${text}` : `cacheRead = ${src}`)
     if (text < 0) notes.unresolved('cached audio and image tokens exceed the cache read total', 'totals_disagree')
     else cacheRead = text
@@ -227,6 +259,8 @@ function scoreUsage(sample: RawRecord): { score: number; reason: string } {
   const v = sample.value
   const res = firstResult(v)
   if (isObject(res) && res.object === USAGE_RESULT_OBJECT) return { score: 0.98, reason: `${USAGE_RESULT_OBJECT} in a usage bucket` }
+  // Other usage endpoints (embeddings, images, audio, ...) name their own result object and are not supported.
+  if (isObject(res) && res.object !== undefined) return { score: 0, reason: `result object ${JSON.stringify(res.object)} is not a completions usage result` }
   if (res === null && (v.object === 'bucket' || v.object === 'page')) return { score: 0.8, reason: `usage ${String(v.object)} with no results yet` }
   if (isObject(res) && res.num_model_requests !== undefined && res.input_tokens !== undefined) {
     return { score: 0.6, reason: 'num_model_requests and input_tokens without the result object name' }

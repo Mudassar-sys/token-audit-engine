@@ -57,30 +57,39 @@ interface BandBucket {
   value: bigint
 }
 
-/** A dimension map that stops adding new keys at the cap and folds the rest into '(overflow)'. */
+/**
+ * A dimension map that stops adding new keys at the cap and folds the rest into an overflow key
+ * ('(overflow)' unless the caller passes a more specific one).
+ */
 class CappedMap<V> {
   readonly map = new Map<string, V>()
+  private readonly overflowKeys = new Set<string>()
   overflowed = false
   constructor(
     private readonly cap: number,
-    private readonly create: (overflow: boolean) => V,
+    private readonly create: (overflow: boolean, key: string) => V,
   ) {}
 
-  get(key: string): V {
+  get(key: string, overflowKey: string = OVERFLOW_KEY): V {
     let v = this.map.get(key)
     if (v) return v
     let k = key
-    if (this.map.size >= this.cap && key !== OVERFLOW_KEY) {
+    const overflow = this.map.size - this.overflowKeys.size >= this.cap && !this.overflowKeys.has(key)
+    if (overflow) {
       this.overflowed = true
-      k = OVERFLOW_KEY
+      k = overflowKey
       v = this.map.get(k)
       if (v) return v
+      this.overflowKeys.add(k)
     }
-    v = this.create(k === OVERFLOW_KEY)
+    v = this.create(overflow, k)
     this.map.set(k, v)
     return v
   }
 }
+
+const PRICED_SUFFIX = '\u00001'
+const bandKey = (model: string, band: string, priced: boolean) => `${model}\u0000${band}${priced ? PRICED_SUFFIX : '\u00000'}`
 
 const newBucket = (): Bucket => ({
   rows: 0,
@@ -132,12 +141,13 @@ export class Aggregator {
     this.byProvider = new CappedMap(cap, newBucket)
     this.byDay = new CappedMap(cap, newBucket)
     this.byLabel = new CappedMap(cap, newBucket)
-    // One key per model, band and priced state; the cap counts keys.
-    this.bands = new CappedMap(cap, (overflow) => ({
+    // One key per model, band and priced state; the cap counts keys. Past the cap, priced and
+    // unpriced rows fold into two separate overflow bands so each keeps its true priced state.
+    this.bands = new CappedMap(cap, (overflow, key) => ({
       model: overflow ? OVERFLOW_KEY : '',
       resolvedKey: null,
       band: overflow ? OVERFLOW_KEY : '',
-      priced: false,
+      priced: key.endsWith(PRICED_SUFFIX),
       requests: 0,
       uncachedInput: 0,
       cacheRead: 0,
@@ -181,11 +191,10 @@ export class Aggregator {
 
     const band = inputBand(inputPerRequest(row))
     const priced = femto !== null
-    const b = this.bands.get(`${model}\u0000${band}\u0000${priced ? 1 : 0}`)
+    const b = this.bands.get(bandKey(model, band, priced), bandKey(OVERFLOW_KEY, OVERFLOW_KEY, priced))
     if (b.band === '') {
       b.model = model
       b.band = band
-      b.priced = priced
       b.resolvedKey = row.resolvedKey
     }
     b.requests += row.requests
@@ -232,8 +241,10 @@ export class Aggregator {
     const partial = leftCount > 0
     const partialReason = partial ? `${left.join(' and ')} ${leftCount === 1 ? 'is' : 'are'} left out` : null
 
+    // Highest value first; buckets with no value sort after every valued bucket.
     const byValue = (a: AggregateBucket, b: AggregateBucket) => {
-      const d = usdToFemto(b.valueUsd) - usdToFemto(a.valueUsd)
+      if ((a.valueUsd === null) !== (b.valueUsd === null)) return a.valueUsd === null ? 1 : -1
+      const d = (b.valueUsd === null ? 0n : usdToFemto(b.valueUsd)) - (a.valueUsd === null ? 0n : usdToFemto(a.valueUsd))
       if (d !== 0n) return d > 0n ? 1 : -1
       return b.rows - a.rows || (a.key < b.key ? -1 : a.key > b.key ? 1 : 0)
     }
@@ -275,19 +286,24 @@ export class Aggregator {
 }
 
 function buckets(m: CappedMap<Bucket>): AggregateBucket[] {
-  return [...m.map.entries()].map(([key, b]) => ({
-    key,
-    rows: b.rows,
-    requests: b.requests,
-    tokens: {
-      uncachedInput: b.uncachedInput,
-      cacheRead: b.cacheRead,
-      cacheWrite: b.cacheWrite,
-      output: b.output,
-      reasoning: b.reasoning,
-    },
-    valueUsd: femtoToExactUsd(b.value),
-    rowsNotPriced: b.rowsNotPriced,
-    rowsUnresolved: b.rowsUnresolved,
-  }))
+  return [...m.map.entries()].map(([key, b]) => {
+    const left = b.rowsNotPriced + b.rowsUnresolved
+    return {
+      key,
+      rows: b.rows,
+      requests: b.requests,
+      tokens: {
+        uncachedInput: b.uncachedInput,
+        cacheRead: b.cacheRead,
+        cacheWrite: b.cacheWrite,
+        output: b.output,
+        reasoning: b.reasoning,
+      },
+      // No priced row means no value, never a 0 that reads like a valid zero.
+      valueUsd: left >= b.rows ? null : femtoToExactUsd(b.value),
+      rowsNotPriced: b.rowsNotPriced,
+      rowsUnresolved: b.rowsUnresolved,
+      partial: left > 0,
+    }
+  })
 }

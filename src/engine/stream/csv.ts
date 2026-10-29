@@ -10,6 +10,8 @@ import {
 } from './reader'
 
 export const DEFAULT_CSV_CHUNK = 4 * 1024 * 1024
+/** Text held while looking for the end of the header line (at least one chunk). */
+const HEADER_LIMIT = 1024 * 1024
 const DELIMITERS = [',', '\t', ';', '|'] as const
 const EXTRA_KEY = '__parsed_extra'
 
@@ -95,6 +97,21 @@ function countLineBreaks(value: string): number {
     else if (c === 13 && value.charCodeAt(i + 1) !== 10) n++
   }
   return n
+}
+
+export type LineBreak = '\r\n' | '\n' | '\r'
+
+/**
+ * Where the header line ends and which line break the file uses: CRLF, LF or a bare CR.
+ * Returns null when no line break is seen yet, or when the text ends in a CR that may be
+ * the first half of a CRLF still to come (unless atEnd). At the end of the text, a file
+ * with no line break is one header line with LF assumed.
+ */
+export function headerLineEnd(text: string, atEnd: boolean): { index: number; newline: LineBreak } | null {
+  const m = /\r\n?|\n/.exec(text)
+  if (!m) return atEnd ? { index: text.length, newline: '\n' } : null
+  if (m[0] === '\r' && m.index === text.length - 1 && !atEnd) return null
+  return { index: m.index, newline: m[0] as LineBreak }
 }
 
 interface ChunkResults {
@@ -246,6 +263,14 @@ export async function streamCsv(file: Blob, control: StreamControl, onRecords: O
   const push = (text: string) => {
     if (text) shim.emit('data', text)
   }
+  /** Start Papa once the header line is complete. Returns false while it may still be cut short. */
+  const tryStart = (atEnd: boolean): boolean => {
+    const end = headerLineEnd(buffer, atEnd)
+    if (!end) return false
+    start(guessDelimiter(buffer.slice(0, end.index)), end.newline)
+    started = true
+    return true
+  }
 
   try {
     for (;;) {
@@ -254,12 +279,10 @@ export async function streamCsv(file: Blob, control: StreamControl, onRecords: O
       const text = await reader.next()
       if (text === null) break
       buffer += text
-      if (!started) {
-        const nl = buffer.indexOf('\n')
-        if (nl < 0) continue
-        const header = buffer.slice(0, nl)
-        start(guessDelimiter(header.replace(/\r$/, '')), header.endsWith('\r') ? '\r\n' : '\n')
-        started = true
+      // Wait for the header line before starting Papa, but never hold more than HEADER_LIMIT for it.
+      if (!started && !tryStart(false)) {
+        if (buffer.length < Math.max(chunkSize, HEADER_LIMIT)) continue
+        tryStart(true)
       }
       if (buffer.length >= chunkSize) {
         const t = buffer
@@ -269,8 +292,7 @@ export async function streamCsv(file: Blob, control: StreamControl, onRecords: O
     }
     if (!started) {
       if (buffer.trim() === '') return
-      start(guessDelimiter(buffer), buffer.includes('\r') ? '\r' : '\n')
-      started = true
+      tryStart(true)
     }
     await waitIdle()
     const rest = buffer

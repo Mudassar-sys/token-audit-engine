@@ -1,5 +1,6 @@
 import type { AuditSummary, Label, PricingModelEntry, PricingSnapshot, RoutingAssumptions } from './contracts'
-import { decimalToScaled, femtoToExactUsd, formatUsd, rateToFemto, scaledToDecimal, usdToFemto } from './money'
+import { OVERFLOW_KEY } from './aggregate'
+import { decimalToScaled, FEMTO_DIGITS, femtoToExactUsd, formatUsd, rateToFemto, scaledToDecimal, usdToFemto } from './money'
 import { providerFamily } from './pricing'
 
 /**
@@ -11,6 +12,13 @@ export type Band = AuditSummary['bands'][number]
 
 const RATIO_DIGITS = 6
 const S = 10n ** BigInt(RATIO_DIGITS)
+/** Display decimals for savings amounts. Only the display value is rounded. */
+const DISPLAY_DECIMALS = 6
+/**
+ * Routing results are products of a femto amount and four ratios of 6 decimal places each,
+ * so they are exact at 10^-(15 + 24) USD. They are kept at that scale and never rounded.
+ */
+export const ROUTING_SCALE_DIGITS = FEMTO_DIGITS + 4 * RATIO_DIGITS
 
 export const BASELINE_LABEL = 'Modelled: the baseline never ran'
 export const ASSUMPTION_LABEL = 'user-supplied assumption'
@@ -69,6 +77,50 @@ export class SavingsInputError extends Error {
 
 function pair(femto: bigint): AmountPair {
   return { exactUsd: femtoToExactUsd(femto), displayUsd: formatUsd(femto) }
+}
+
+/**
+ * Exact pair for a USD amount scaled by 10^ROUTING_SCALE_DIGITS. The exact text keeps every digit;
+ * the display value is rounded once, half away from zero, to DISPLAY_DECIMALS.
+ */
+function scaledPair(v: bigint): AmountPair {
+  const drop = 10n ** BigInt(ROUTING_SCALE_DIGITS - DISPLAY_DECIMALS)
+  const displayFemto = divRound(v, drop) * 10n ** BigInt(FEMTO_DIGITS - DISPLAY_DECIMALS)
+  return { exactUsd: scaledToDecimal(v, ROUTING_SCALE_DIGITS), displayUsd: formatUsd(displayFemto, DISPLAY_DECIMALS) }
+}
+
+const DECIMAL_TEXT = /^(-?)(\d+)(?:\.(\d+))?$/
+
+/** Lossless canonical decimal text: no leading or trailing zeros, so '0.50' and '00.5' read '0.5'. */
+export function canonicalDecimal(text: string): string {
+  const m = DECIMAL_TEXT.exec(text.trim())
+  if (!m) return text
+  const int = m[2]!.replace(/^0+(?=\d)/, '')
+  const frac = (m[3] ?? '').replace(/0+$/, '')
+  const out = frac ? `${int}.${frac}` : int
+  return m[1] && out !== '0' ? `-${out}` : out
+}
+
+function sortedUnique(list: readonly string[]): string[] {
+  return [...new Set(list)].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
+}
+
+/**
+ * Canonical routing assumptions: source models and input bands are sets, so they are
+ * deduplicated and sorted; decimal strings are written without redundant zeros.
+ * The same calculation then always has the same text and the same calculation identity.
+ */
+export function canonicalRoutingAssumptions(a: RoutingAssumptions): RoutingAssumptions {
+  return {
+    ...a,
+    sourceModels: sortedUnique(a.sourceModels),
+    inputBands: sortedUnique(a.inputBands),
+    eligibleShare: canonicalDecimal(a.eligibleShare),
+    outputLengthRatio: canonicalDecimal(a.outputLengthRatio),
+    tokenizerRatio: canonicalDecimal(a.tokenizerRatio),
+    retryFallbackRate: canonicalDecimal(a.retryFallbackRate),
+    calibrationPassRate: a.calibrationPassRate === null ? null : canonicalDecimal(a.calibrationPassRate),
+  }
 }
 
 function int(n: number, what: string): bigint {
@@ -178,7 +230,8 @@ export function modelBaseline(bands: readonly Band[], snapshot: PricingSnapshot,
  * Route an eligible share of the chosen source models and input bands to a target model.
  * Empty sourceModels or inputBands mean all. Result = original cost minus scenario cost.
  */
-export function modelRouting(bands: readonly Band[], snapshot: PricingSnapshot, a: RoutingAssumptions): RoutingResult {
+export function modelRouting(bands: readonly Band[], snapshot: PricingSnapshot, input: RoutingAssumptions): RoutingResult {
+  const a = canonicalRoutingAssumptions(input)
   if (a.targetModel === null) throw new SavingsInputError('Choose a target model')
   const targetKey = a.targetModel
   const entry = snapshot.models[targetKey]
@@ -201,8 +254,9 @@ export function modelRouting(bands: readonly Band[], snapshot: PricingSnapshot, 
   const S4 = S3 * S
 
   let original = 0n
-  /** Scenario cost scaled by S^4 so every ratio stays exact until one final rounding. */
+  /** Scenario cost scaled by S^4 so every ratio stays exact. It is never rounded. */
   let scenario4 = 0n
+  let overflowPriced = false
   let used = 0
   let eligible = 0
   const skipped: SkippedBand[] = []
@@ -215,6 +269,7 @@ export function modelRouting(bands: readonly Band[], snapshot: PricingSnapshot, 
     const orig = usdToFemto(b.valueUsd)
     original += orig
     used++
+    if (b.model === OVERFLOW_KEY) overflowPriced = true
     const modelMatch = models.size === 0 || models.has(b.model) || (b.resolvedKey !== null && models.has(b.resolvedKey))
     const bandMatch = inBands.size === 0 || inBands.has(b.band)
     if (!modelMatch || !bandMatch) {
@@ -236,7 +291,8 @@ export function modelRouting(bands: readonly Band[], snapshot: PricingSnapshot, 
     if (pass !== null) scenario4 += orig * share * (S - pass) * S2
   }
 
-  const scenario = divRound(scenario4, S4)
+  const original4 = original * S4
+  const filtered = models.size > 0 || inBands.size > 0
   const assumptions = [
     `eligible share ${a.eligibleShare}, output length ratio ${a.outputLengthRatio}, tokenizer ratio ${a.tokenizerRatio}, retry and fallback rate ${a.retryFallbackRate}, routing overhead ${a.routingOverheadTokens} tokens per request: ${ASSUMPTION_LABEL}`,
     a.calibrationPassRate === null
@@ -247,7 +303,10 @@ export function modelRouting(bands: readonly Band[], snapshot: PricingSnapshot, 
       : 'target has no cache read rate, so cache classes are priced as uncached input',
     ...base.notes,
     'reasoning tokens are priced as ordinary output',
-    'result rounded once to 1e-15 USD',
+    ...(overflowPriced && filtered
+      ? [`rows grouped under ${OVERFLOW_KEY} past the key limit match no named source model or input band, so they keep their logged value`]
+      : []),
+    `scenario and savings are exact decimals at 1e-${ROUTING_SCALE_DIGITS} USD (1e-15 USD times four ratios of up to ${RATIO_DIGITS} decimal places); nothing is rounded except the display value, which is rounded to ${DISPLAY_DECIMALS} decimal places`,
     'quality on the target model is unverified',
   ]
   return {
@@ -256,8 +315,8 @@ export function modelRouting(bands: readonly Band[], snapshot: PricingSnapshot, 
     label: { kind: 'Estimated', reason: `eligible share repriced at the list price of ${targetKey}` },
     quality: 'unverified',
     original: pair(original),
-    scenario: pair(scenario),
-    savings: pair(original - scenario),
+    scenario: scaledPair(scenario4),
+    savings: scaledPair(original4 - scenario4),
     assumptions,
     bandsUsed: used,
     bandsEligible: eligible,

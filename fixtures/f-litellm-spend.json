@@ -129,5 +129,190 @@
     "custom_llm_provider": "",
     "metadata": {},
     "total_tokens": 630
+  },
+  {
+    "call_type": "pass_through_endpoint",
+    "api_key": "88dc28d0f030c55ed4ab77ed8faf098196cb1c05df778539800c9f1243fe6b4b",
+    "completionStartTime": "",
+    "model_id": "",
+    "api_base": "https://api.anthropic.com/v1/messages",
+    "user": "user-7f3a",
+    "cache_hit": "False",
+    "cache_key": "",
+    "request_tags": [],
+    "team_id": "team-2b9c",
+    "end_user": "",
+    "requester_ip_address": "",
+    "messages": {},
+    "response": {},
+    "session_id": "",
+    "status": "success",
+    "request_id": "req-j4",
+    "spend": 0.00132,
+    "prompt_tokens": 10,
+    "completion_tokens": 50,
+    "startTime": "2026-10-04T12:15:00.000Z",
+    "endTime": "2026-10-04T12:15:02.000Z",
+    "model": "claude-sonnet-4-5",
+    "custom_llm_provider": "anthropic",
+    "metadata": {
+      "usage_object": {
+        "input_tokens": 10,
+        "output_tokens": 50,
+        "cache_read_input_tokens": 1800,
+        "cache_creation_input_tokens": 0
+      }
+    },
+    "total_tokens": 60,
+    "model_group": "claude-sonnet-4-5"
+  },
+  {
+    "call_type": "acompletion",
+    "api_key": "88dc28d0f030c55ed4ab77ed8faf098196cb1c05df778539800c9f1243fe6b4b",
+    "completionStartTime": "",
+    "model_id": "",
+    "api_base": "",
+    "user": "user-7f3a",
+    "cache_hit": "False",
+    "cache_key": "",
+    "request_tags": [],
+    "team_id": "team-2b9c",
+    "end_user": "",
+    "requester_ip_address": "",
+    "messages": {},
+    "response": {},
+    "session_id": "",
+    "status": "success",
+    "request_id": "chatcmpl-j5",
+    "spend": 0.005615,
+    "prompt_tokens": 2006,
+    "completion_tokens": 300,
+    "startTime": "2026-10-04T12:16:00.000Z",
+    "endTime": "2026-10-04T12:16:02.000Z",
+    "model": "gpt-4o",
+    "custom_llm_provider": "openai",
+    "metadata": {
+      "additional_usage_values": {
+        "prompt_tokens_details": {
+          "cached_tokens": 1920
+        }
+      }
+    },
+    "total_tokens": 2306,
+    "model_group": "gpt-4o"
+  },
+  {
+    "call_type": "acompletion",
+    "api_key": "88dc28d0f030c55ed4ab77ed8faf098196cb1c05df778539800c9f1243fe6b4b",
+    "completionStartTime": "",
+    "model_id": "",
+    "api_base": "",
+    "user": "user-7f3a",
+    "cache_hit": "False",
+    "cache_key": "",
+    "request_tags": [],
+    "team_id": "team-2b9c",
+    "end_user": "",
+    "requester_ip_address": "",
+    "messages": {},
+    "response": {},
+    "session_id": "",
+    "status": "success",
+    "request_id": "chatcmpl-j6",
+    "spend": 0.018,
+    "prompt_tokens": 3000,
+    "completion_tokens": 200,
+    "startTime": "2026-10-04T12:17:00.000Z",
+    "endTime": "2026-10-04T12:17:03.000Z",
+    "model": "claude-sonnet-4-5",
+    "custom_llm_provider": "anthropic",
+    "metadata": {
+      "additional_usage_values": {
+        "cache_creation_input_tokens": 2000,
+        "prompt_tokens_details": {
+          "cache_creation_tokens": 2000,
+          "cache_creation_token_details": {
+            "ephemeral_5m_input_tokens": 0,
+            "ephemeral_1h_input_tokens": 2000
+          }
+        }
+      }
+    },
+    "total_tokens": 3200,
+    "model_group": "claude-sonnet-4-5"
+  },
+  {
+    "call_type": "acompletion",
+    "api_key": "88dc28d0f030c55ed4ab77ed8faf098196cb1c05df778539800c9f1243fe6b4b",
+    "completionStartTime": "",
+    "model_id": "",
+    "api_base": "",
+    "user": "user-7f3a",
+    "cache_hit": "False",
+    "cache_key": "",
+    "request_tags": [],
+    "team_id": "team-2b9c",
+    "end_user": "",
+    "requester_ip_address": "",
+    "messages": {},
+    "response": {},
+    "session_id": "",
+    "status": "success",
+    "request_id": "chatcmpl-j7",
+    "spend": 0.0655,
+    "prompt_tokens": 1000,
+    "completion_tokens": 500,
+    "startTime": "2026-10-04T12:18:00.000Z",
+    "endTime": "2026-10-04T12:18:04.000Z",
+    "model": "gpt-4o-audio-preview",
+    "custom_llm_provider": "openai",
+    "metadata": {
+      "additional_usage_values": {
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "audio_tokens": 800
+        },
+        "completion_tokens_details": {
+          "audio_tokens": 400
+        }
+      }
+    },
+    "total_tokens": 1500,
+    "model_group": "gpt-4o-audio-preview"
+  },
+  {
+    "call_type": "acompletion",
+    "api_key": "88dc28d0f030c55ed4ab77ed8faf098196cb1c05df778539800c9f1243fe6b4b",
+    "completionStartTime": "",
+    "model_id": "",
+    "api_base": "",
+    "user": "user-7f3a",
+    "cache_hit": "False",
+    "cache_key": "",
+    "request_tags": [],
+    "team_id": "team-2b9c",
+    "end_user": "",
+    "requester_ip_address": "",
+    "messages": {},
+    "response": {},
+    "session_id": "",
+    "status": "success",
+    "request_id": "chatcmpl-j8",
+    "spend": 0.013,
+    "prompt_tokens": 500,
+    "completion_tokens": 100,
+    "startTime": "2026-10-04T12:19:00.000Z",
+    "endTime": "2026-10-04T12:19:05.000Z",
+    "model": "claude-sonnet-4-5",
+    "custom_llm_provider": "anthropic",
+    "metadata": {
+      "additional_usage_values": {
+        "server_tool_use": {
+          "web_search_requests": 1
+        }
+      }
+    },
+    "total_tokens": 600,
+    "model_group": "claude-sonnet-4-5"
   }
 ]

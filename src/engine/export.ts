@@ -1,5 +1,5 @@
 import { ENGINE_VERSION, IdentityInputs, Report, SCHEMA_VERSION, type AuditRow, type AuditSummary } from './contracts'
-import { calculationIdentity } from './identity'
+import { calculationIdentity, canonicalIdentityInputs } from './identity'
 import { formatUsd, usdToFemto } from './money'
 import { priceLabel } from './pricing'
 
@@ -143,7 +143,8 @@ export function buildReport(
   exportedAt: string | Date,
   savings: unknown,
 ): Report {
-  const inputs = IdentityInputs.parse(identityInputs)
+  // Stored in canonical form, so sha256 of the canonical JSON of `inputs` is the identity itself.
+  const inputs = canonicalIdentityInputs(IdentityInputs.parse(identityInputs))
   const decimals = inputs.reportSettings.displayDecimals
   const report: Report = {
     title: 'Token cost audit report',

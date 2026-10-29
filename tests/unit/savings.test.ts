@@ -2,7 +2,17 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { DecimalString, PricingSnapshot, type RoutingAssumptions } from '../../src/engine/contracts'
-import { BASELINE_LABEL, modelBaseline, modelRouting, SavingsInputError, type Band } from '../../src/engine/savings'
+import { decimalToScaled, scaledToDecimal } from '../../src/engine/money'
+import {
+  BASELINE_LABEL,
+  canonicalDecimal,
+  canonicalRoutingAssumptions,
+  modelBaseline,
+  modelRouting,
+  ROUTING_SCALE_DIGITS,
+  SavingsInputError,
+  type Band,
+} from '../../src/engine/savings'
 
 const ROOT = join(__dirname, '..', '..')
 const worked = JSON.parse(readFileSync(join(ROOT, 'fixtures', 'worked-examples.json'), 'utf8')) as { snapshot: { file: string } }
@@ -13,7 +23,7 @@ const bands: Band[] = [
   { model: 'gpt-4o', resolvedKey: 'gpt-4o', band: '1k-10k', requests: 10, uncachedInput: 10000, cacheRead: 5000, cacheWrite: 0, output: 2000, valueUsd: '0.05125', priced: true },
   // 2000 x 0.000003 + 1000 x 0.0000003 + 400 x 0.00000375 + 800 x 0.000015 = 0.0198
   { model: 'claude-sonnet-4-5-20250929', resolvedKey: 'claude-sonnet-4-5-20250929', band: '<1k', requests: 4, uncachedInput: 2000, cacheRead: 1000, cacheWrite: 400, output: 800, valueUsd: '0.0198', priced: true },
-  { model: 'acme-unlisted-model-x', resolvedKey: null, band: '<1k', requests: 3, uncachedInput: 300, cacheRead: 0, cacheWrite: 0, output: 30, valueUsd: '0', priced: false },
+  { model: 'unlisted-model-x', resolvedKey: null, band: '<1k', requests: 3, uncachedInput: 300, cacheRead: 0, cacheWrite: 0, output: 30, valueUsd: '0', priced: false },
 ]
 
 function routing(over: Partial<RoutingAssumptions> = {}): RoutingAssumptions {
@@ -56,7 +66,7 @@ describe('modelBaseline', () => {
   })
 
   it('rejects an unknown baseline', () => {
-    expect(() => modelBaseline(bands, snapshot, 'acme-unlisted-model-x')).toThrow(SavingsInputError)
+    expect(() => modelBaseline(bands, snapshot, 'unlisted-model-x')).toThrow(SavingsInputError)
   })
 })
 
@@ -100,9 +110,68 @@ describe('modelRouting', () => {
     expect(modelRouting(bands, snapshot, routing({ sourceModels: [], inputBands: ['<1k', '1k-10k'] })).bandsEligible).toBe(2)
   })
 
-  it('rounds once and keeps exact decimal text', () => {
+  it('keeps exact decimal text and never rounds the result', () => {
     const r = modelRouting(bands, snapshot, routing({ eligibleShare: '0.333333', tokenizerRatio: '1.111111', outputLengthRatio: '0.777777', retryFallbackRate: '0.012345' }))
     for (const v of [r.original, r.scenario, r.savings]) expect(DecimalString.safeParse(v.exactUsd).success).toBe(true)
+    // original minus scenario equals savings exactly at the documented scale.
+    const at = (t: string) => decimalToScaled(t, ROUTING_SCALE_DIGITS)
+    expect(at(r.original.exactUsd) - at(r.scenario.exactUsd)).toBe(at(r.savings.exactUsd))
+    expect(r.assumptions.join(' ')).toContain(`exact decimals at 1e-${ROUTING_SCALE_DIGITS} USD`)
+    expect(r.assumptions.join(' ')).not.toContain('rounded once')
+  })
+
+  it('a product finer than 1e-15 USD is kept exactly, not rounded to femto-dollars', () => {
+    // One output token at the gpt-4o-mini output rate (0.0000006) times four 6-decimal ratios.
+    const one: Band[] = [{ model: 'gpt-4o', resolvedKey: 'gpt-4o', band: '<1k', requests: 1, uncachedInput: 0, cacheRead: 0, cacheWrite: 0, output: 1, valueUsd: '0', priced: true }]
+    const r = modelRouting(one, snapshot, routing({ sourceModels: [], eligibleShare: '0.333333', outputLengthRatio: '1.234567', tokenizerRatio: '1.111111', retryFallbackRate: '0.012345' }))
+    const exact = 600000000n * 1234567n * 1111111n * 333333n * 1012345n
+    expect(ROUTING_SCALE_DIGITS).toBe(39)
+    expect(r.scenario.exactUsd).toBe(scaledToDecimal(exact, 39))
+    expect(r.scenario.exactUsd).toBe('0.000000277734745517027200949547')
+    expect(r.savings.exactUsd).toBe('-0.000000277734745517027200949547')
+    // Display is the only rounding.
+    expect(r.scenario.displayUsd).toBe('$0.000000')
+    expect(r.savings.displayUsd).toBe('$0.000000')
+  })
+
+  it('display rounding is a single half away from zero step on the exact value', () => {
+    const one: Band[] = [{ model: 'gpt-4o', resolvedKey: 'gpt-4o', band: '<1k', requests: 1, uncachedInput: 0, cacheRead: 0, cacheWrite: 0, output: 1, valueUsd: '0.0000015', priced: true }]
+    // Scenario: 0.0000015 x 0.5 kept + 0.0000006 x 0.5 moved = 0.00000105, displayed $0.000001
+    const r = modelRouting(one, snapshot, routing({ sourceModels: [], eligibleShare: '0.5' }))
+    expect(r.scenario.exactUsd).toBe('0.00000105')
+    expect(r.scenario.displayUsd).toBe('$0.000001')
+    expect(r.savings.exactUsd).toBe('0.00000045')
+    expect(r.savings.displayUsd).toBe('$0.000000')
+  })
+
+  it('canonical assumptions: set order and decimal spelling do not change the result text', () => {
+    const a = canonicalRoutingAssumptions(routing({ sourceModels: ['gpt-4o', 'claude-sonnet-4-5-20250929', 'gpt-4o'], inputBands: ['<1k', '1k-10k'], eligibleShare: '0.50', outputLengthRatio: '01.000', retryFallbackRate: '0.0', calibrationPassRate: '0.90' }))
+    expect(a).toMatchObject({
+      sourceModels: ['claude-sonnet-4-5-20250929', 'gpt-4o'],
+      inputBands: ['1k-10k', '<1k'],
+      eligibleShare: '0.5',
+      outputLengthRatio: '1',
+      retryFallbackRate: '0',
+      calibrationPassRate: '0.9',
+    })
+    expect(canonicalDecimal('00.5')).toBe('0.5')
+    expect(canonicalDecimal('-0.000')).toBe('0')
+    expect(canonicalDecimal('12.3400')).toBe('12.34')
+    const r1 = modelRouting(bands, snapshot, routing({ sourceModels: ['gpt-4o', 'claude-sonnet-4-5-20250929'], eligibleShare: '0.50' }))
+    const r2 = modelRouting(bands, snapshot, routing({ sourceModels: ['claude-sonnet-4-5-20250929', 'gpt-4o'], eligibleShare: '0.5' }))
+    expect(r1).toEqual(r2)
+  })
+
+  it('names the overflow group when filters cannot match it', () => {
+    const withOverflow: Band[] = [
+      ...bands,
+      { model: '(overflow)', resolvedKey: null, band: '(overflow)', requests: 1, uncachedInput: 100, cacheRead: 0, cacheWrite: 0, output: 10, valueUsd: '0.00035', priced: true },
+    ]
+    const filtered = modelRouting(withOverflow, snapshot, routing())
+    expect(filtered.assumptions.join(' ')).toContain('rows grouped under (overflow) past the key limit')
+    expect(filtered.original.exactUsd).toBe('0.0714')
+    const all = modelRouting(withOverflow, snapshot, routing({ sourceModels: [] }))
+    expect(all.assumptions.join(' ')).not.toContain('(overflow)')
   })
 
   it('rejects invalid assumptions', () => {
@@ -111,6 +180,6 @@ describe('modelRouting', () => {
     expect(() => modelRouting(bands, snapshot, routing({ tokenizerRatio: '0.1234567' }))).toThrow(SavingsInputError)
     expect(() => modelRouting(bands, snapshot, routing({ calibrationPassRate: '2' }))).toThrow(SavingsInputError)
     expect(() => modelRouting(bands, snapshot, routing({ targetModel: null }))).toThrow(SavingsInputError)
-    expect(() => modelRouting(bands, snapshot, routing({ targetModel: 'acme-unlisted-model-x' }))).toThrow(SavingsInputError)
+    expect(() => modelRouting(bands, snapshot, routing({ targetModel: 'unlisted-model-x' }))).toThrow(SavingsInputError)
   })
 })

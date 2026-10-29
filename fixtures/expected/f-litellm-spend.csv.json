@@ -17,7 +17,7 @@
     ],
     "excluded": {},
     "flags": [
-      "inclusion_assumed"
+      "inclusion_detected"
     ],
     "unresolvedReason": null,
     "counted": true,
@@ -48,7 +48,7 @@
     ],
     "excluded": {},
     "flags": [
-      "inclusion_assumed",
+      "inclusion_detected",
       "duration_assumed"
     ],
     "unresolvedReason": null,
@@ -140,7 +140,7 @@
     "notMeasured": [],
     "excluded": {},
     "flags": [
-      "inclusion_assumed",
+      "inclusion_detected",
       "duration_assumed"
     ],
     "unresolvedReason": null,
@@ -178,7 +178,7 @@
     "counted": true,
     "requests": 1,
     "tierStated": null,
-    "modelLogged": "acme-internal-model-q",
+    "modelLogged": "unlisted-internal-model-q",
     "reported": {
       "amountUsd": "0.0001",
       "field": "spend",

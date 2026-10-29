@@ -1,9 +1,12 @@
+// Must stay the first import: zod reads this setting when the schemas are built.
+import './zodJitless'
 import type { AuditRow, AuditSummary, NormalizedUsageRow, WorkerRequest, WorkerResponse } from '../engine/contracts'
 import { runImport, type RowSink } from '../engine/pipeline'
-import { detectFromSample, sampleRecordsFromText } from '../engine/detect'
+import { detectFromSample } from '../engine/detect'
 import { adapterForVariant } from '../engine/adapters'
 import { CSV_HEADER, auditRowToCsvLine } from '../engine/export'
 import { generateSampleChunks } from '../engine/sample'
+import { streamRecords } from '../engine/stream'
 import {
   StoreQuotaError,
   clearAll,
@@ -25,23 +28,50 @@ import {
 export interface RequestEnvelope { id: number; request: WorkerRequest }
 export interface ResponseEnvelope { id: number; response: WorkerResponse }
 
-const scope = self as unknown as DedicatedWorkerGlobalScope
+/** The parts of the worker global scope this module uses. */
+interface WorkerScope {
+  postMessage(message: ResponseEnvelope): void
+  addEventListener(type: 'message', listener: (event: MessageEvent<RequestEnvelope>) => void): void
+  navigator: { storage?: { estimate?(): Promise<{ usage?: number; quota?: number }> } }
+}
+
+const scope = self as unknown as WorkerScope
 
 const SAMPLE_BYTES = 64 * 1024
 const CSV_EXPORT_BATCH = 5000
 const STORAGE_FACTOR = 3
+const PREVIEW_ROWS = 20
+/** The preview stops after this many records even when fewer than 20 rows mapped. */
+const PREVIEW_MAX_RECORDS = 1000
+
+export const EXPORT_STOPPED_BY_IMPORT = 'The CSV export stopped because a new import started. No file was saved.'
+export const EXPORT_STOPPED_BY_CLEAR = 'The CSV export stopped because local data was cleared. No file was saved.'
 
 interface RunningImport {
   id: number
   auditId: string
   controller: AbortController
   sink: TrackingSink
-  cancel: { id: number; startedAt: number } | null
+  /** Set by the first cancel request. Every cancel request id gets one reply. */
+  cancel: { ids: number[]; startedAt: number } | null
+}
+
+/** The audit that is open for reads and exports, with the row count the import stored. */
+interface CurrentAudit {
+  auditId: string
+  totalRows: number
+}
+
+/** A CSV export in progress. stopReason is set when an import or a clear starts during it. */
+interface ExportJob {
+  auditId: string
+  stopReason: string | null
 }
 
 let running: RunningImport | null = null
 let importFinished: Promise<void> | null = null
-let currentAuditId: string | null = null
+let current: CurrentAudit | null = null
+const exportJobs = new Set<ExportJob>()
 
 function post(id: number, response: WorkerResponse): void {
   const env: ResponseEnvelope = { id, response }
@@ -136,20 +166,39 @@ async function deleteQuietly(auditId: string): Promise<boolean> {
   }
 }
 
+function throwIfAborted(controller: AbortController): void {
+  if (controller.signal.aborted) throw new DOMException('Import cancelled', 'AbortError')
+}
+
+/** Reply to every cancel request of this import that has no reply yet. */
+function answerCancels(run: RunningImport, res: WorkerResponse): void {
+  const ids = run.cancel?.ids.splice(0) ?? []
+  for (const cancelId of ids) post(cancelId, res)
+}
+
+/** Stop every CSV export in progress, so none can finish with rows missing. */
+function stopExports(reason: string): void {
+  for (const job of exportJobs) job.stopReason ??= reason
+}
+
 async function handleImport(id: number, req: Extract<WorkerRequest, { type: 'import' }>): Promise<void> {
   if (running) {
     post(id, errorResponse('internal', 'An import is already running. Cancel it first.'))
     return
   }
+  // This import deletes the open audit, so an export of it can no longer finish.
+  stopExports(EXPORT_STOPPED_BY_IMPORT)
   const file = req.file as Blob
   const auditId = newAuditId()
   const controller = new AbortController()
   const sink = new TrackingSink(auditId)
   const run: RunningImport = { id, auditId, controller, sink, cancel: null }
   running = run
+  let partialRowsDeleted = false
 
   try {
     const { usage, quota } = await storageEstimate()
+    throwIfAborted(controller)
     if (quota !== null) {
       const free = Math.max(0, quota - (usage ?? 0))
       const needed = file.size * STORAGE_FACTOR
@@ -161,8 +210,9 @@ async function handleImport(id: number, req: Extract<WorkerRequest, { type: 'imp
 
     // One audit at a time: earlier audits are removed before a new import starts.
     for (const old of await listAuditIds()) await deleteAudit(old)
-    currentAuditId = null
+    current = null
     await putAudit({ auditId, status: 'importing', fileName: req.fileName, startedAt: new Date().toISOString(), summary: null })
+    throwIfAborted(controller)
 
     const result = await runImport({
       file,
@@ -178,12 +228,14 @@ async function handleImport(id: number, req: Extract<WorkerRequest, { type: 'imp
       auditId,
       onProgress: (progress) => post(id, { type: 'progress', progress }),
     })
-    if (controller.signal.aborted) throw new DOMException('Import cancelled', 'AbortError')
+    throwIfAborted(controller)
     await sink.drain()
     if (sink.firstError) throw sink.firstError
     const summary: AuditSummary = { ...result, auditId }
     await putAudit({ auditId, status: 'done', fileName: req.fileName, startedAt: new Date().toISOString(), summary })
-    currentAuditId = auditId
+    // A cancel that arrived while the last writes settled still wins: the visitor asked to stop.
+    throwIfAborted(controller)
+    current = { auditId, totalRows: summary.coverage.totalRows }
     post(id, { type: 'done', summary })
   } catch (err) {
     sink.stop()
@@ -193,23 +245,31 @@ async function handleImport(id: number, req: Extract<WorkerRequest, { type: 'imp
     if (run.cancel && !quotaHit) {
       const cancelMs = performance.now() - run.cancel.startedAt
       const deleteStart = performance.now()
-      const deleted = await deleteQuietly(auditId)
+      partialRowsDeleted = await deleteQuietly(auditId)
       const deleteMs = performance.now() - deleteStart
-      const res: WorkerResponse = { type: 'cancelled', cancelMs, deleteMs, partialRowsDeleted: deleted }
+      const res: WorkerResponse = { type: 'cancelled', cancelMs, deleteMs, partialRowsDeleted }
       post(id, res)
-      post(run.cancel.id, res)
+      answerCancels(run, res)
     } else if (quotaHit) {
-      await deleteQuietly(auditId)
-      post(id, errorResponse('quota', new StoreQuotaError().message + ' Partial rows were deleted.'))
-      if (run.cancel) post(run.cancel.id, { type: 'cancelled', cancelMs: performance.now() - run.cancel.startedAt, deleteMs: 0, partialRowsDeleted: true })
+      const deleteStart = performance.now()
+      partialRowsDeleted = await deleteQuietly(auditId)
+      const deleteMs = performance.now() - deleteStart
+      const note = partialRowsDeleted ? ' Partial rows were deleted.' : ' Partial rows could not be deleted. Use Clear local data.'
+      post(id, errorResponse('quota', new StoreQuotaError().message + note))
+      if (run.cancel) answerCancels(run, { type: 'cancelled', cancelMs: performance.now() - run.cancel.startedAt, deleteMs, partialRowsDeleted })
     } else if (isAbortError(err)) {
-      await deleteQuietly(auditId)
-      post(id, { type: 'cancelled', cancelMs: 0, deleteMs: 0, partialRowsDeleted: true })
+      const deleteStart = performance.now()
+      partialRowsDeleted = await deleteQuietly(auditId)
+      post(id, { type: 'cancelled', cancelMs: 0, deleteMs: performance.now() - deleteStart, partialRowsDeleted })
     } else {
-      await deleteQuietly(auditId)
+      partialRowsDeleted = await deleteQuietly(auditId)
       post(id, errorResponse(codeForError(err), messageOf(err)))
     }
   } finally {
+    // A cancel that came in after the outcome was decided still gets a reply.
+    if (run.cancel && run.cancel.ids.length > 0) {
+      answerCancels(run, { type: 'cancelled', cancelMs: performance.now() - run.cancel.startedAt, deleteMs: 0, partialRowsDeleted })
+    }
     if (running === run) running = null
   }
 }
@@ -220,50 +280,82 @@ function handleCancel(id: number): void {
     post(id, { type: 'cancelled', cancelMs: 0, deleteMs: 0, partialRowsDeleted: false })
     return
   }
-  if (run.cancel) return
-  run.cancel = { id, startedAt: performance.now() }
+  if (run.cancel) {
+    // A repeated cancel: reply together with the first one.
+    run.cancel.ids.push(id)
+    return
+  }
+  run.cancel = { ids: [id], startedAt: performance.now() }
   run.sink.stop()
   run.controller.abort()
 }
 
 async function handleRows(id: number, offset: number, limit: number): Promise<void> {
-  const rows = currentAuditId ? await getRows(currentAuditId, offset, Math.min(Math.max(0, limit), 1000)) : []
+  const rows = current ? await getRows(current.auditId, offset, Math.min(Math.max(0, limit), 1000)) : []
   post(id, { type: 'rows', offset, rows })
 }
 
 async function handleRow(id: number, rowIndex: number): Promise<void> {
-  post(id, { type: 'row', row: currentAuditId ? await getRow(currentAuditId, rowIndex) : null })
+  post(id, { type: 'row', row: current ? await getRow(current.auditId, rowIndex) : null })
 }
 
+class ExportStopped extends Error {}
+
 async function handleExportCsv(id: number): Promise<void> {
-  if (!currentAuditId) {
+  // The audit is fixed when the export starts. An import or clear during the export stops it.
+  const audit = current
+  if (!audit) {
     post(id, errorResponse('internal', 'There is no audit to export yet.'))
     return
   }
-  const parts: BlobPart[] = [CSV_HEADER]
-  const total = await iterateRows(currentAuditId, CSV_EXPORT_BATCH, (rows) => {
-    // One part per batch of 5,000 rows: never one giant string.
-    parts.push(rows.map(auditRowToCsvLine).join(''))
-  })
-  const blob = new Blob(parts, { type: 'text/csv;charset=utf-8' })
-  post(id, { type: 'csv', blob, rows: total })
+  const job: ExportJob = { auditId: audit.auditId, stopReason: null }
+  exportJobs.add(job)
+  try {
+    const parts: BlobPart[] = [CSV_HEADER]
+    const total = await iterateRows(audit.auditId, CSV_EXPORT_BATCH, (rows) => {
+      if (job.stopReason) throw new ExportStopped(job.stopReason)
+      // One part per batch of 5,000 rows: never one giant string.
+      parts.push(rows.map(auditRowToCsvLine).join(''))
+    })
+    if (job.stopReason) throw new ExportStopped(job.stopReason)
+    if (total !== audit.totalRows) {
+      throw new ExportStopped(`The CSV export read ${total} of ${audit.totalRows} rows, so no file was saved. Export again.`)
+    }
+    const blob = new Blob(parts, { type: 'text/csv;charset=utf-8' })
+    post(id, { type: 'csv', blob, rows: total })
+  } catch (err) {
+    if (!(err instanceof ExportStopped)) throw err
+    post(id, errorResponse('internal', err.message))
+  } finally {
+    exportJobs.delete(job)
+  }
 }
 
+/** Map the first 20 rows of a custom CSV. Reads records until 20 rows are mapped, whatever the row size. */
 async function handlePreview(id: number, req: Extract<WorkerRequest, { type: 'preview' }>): Promise<void> {
-  const text = await readSampleText(req.file as Blob)
-  const records = sampleRecordsFromText(text, 'H-csv', 21)
   const run = adapterForVariant('H-csv').begin({ variant: 'H-csv', mapping: req.mapping, fileFacts: {} })
   const rows: NormalizedUsageRow[] = []
   const errors: string[] = []
-  for (const record of records) {
-    if (rows.length >= 20) break
-    if (record.kind === 'error') errors.push(`Line ${record.line ?? '?'}: ${record.message}`)
-    for (const row of run.push(record)) {
-      if (rows.length >= 20) break
-      const full: NormalizedUsageRow = { ...row, rowIndex: rows.length }
-      rows.push(full)
-      if (full.unresolvedReason) errors.push(`Row ${full.rowIndex + 1}: ${full.unresolvedReason}`)
-    }
+  const stop = new AbortController()
+  let records = 0
+  const enough = () => rows.length >= PREVIEW_ROWS || records >= PREVIEW_MAX_RECORDS
+  try {
+    await streamRecords(req.file as Blob, 'csv', { signal: stop.signal, onBytes() {}, onChunk() {} }, (batch) => {
+      for (const record of batch) {
+        if (enough()) break
+        records++
+        if (record.kind === 'error') errors.push(`Line ${record.line ?? '?'}: ${record.message}`)
+        for (const row of run.push(record)) {
+          if (rows.length >= PREVIEW_ROWS) break
+          const full: NormalizedUsageRow = { ...row, rowIndex: rows.length }
+          rows.push(full)
+          if (full.unresolvedReason) errors.push(`Row ${full.rowIndex + 1}: ${full.unresolvedReason}`)
+        }
+      }
+      if (enough()) stop.abort()
+    })
+  } catch (err) {
+    if (!isAbortError(err)) throw err
   }
   post(id, { type: 'preview', rows, errors })
 }
@@ -336,13 +428,14 @@ async function handle(env: RequestEnvelope): Promise<void> {
     case 'exportCsv':
       return handleExportCsv(id)
     case 'clear': {
+      stopExports(EXPORT_STOPPED_BY_CLEAR)
       const run = running
       if (run) {
         run.sink.stop()
         run.controller.abort()
         await importFinished?.catch(() => undefined)
       }
-      currentAuditId = null
+      current = null
       await clearAll()
       post(id, { type: 'cleared' })
       return

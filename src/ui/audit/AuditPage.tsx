@@ -7,7 +7,7 @@ import type { OpenAudit } from '../appState'
 import type { EngineClient } from '../engineClient'
 import { fileStem, saveBlob, saveJson } from '../download'
 import { formatBytes, formatInt, formatMs } from '../format'
-import { AggregatesPanel, CoveragePanel, ExcludedPanel, TotalsPanel } from './SummaryPanels'
+import { AggregatesPanel, CoveragePanel, TotalsPanel } from './SummaryPanels'
 import { RowTable } from './RowTable'
 import { RowDrawer } from './RowDrawer'
 import { EMPTY_SAVINGS, SavingsPanel, type SavingsState } from './SavingsPanel'
@@ -123,7 +123,6 @@ function OpenAuditView({ client, audit }: { client: EngineClient; audit: OpenAud
       <CoveragePanel summary={summary} />
       <TotalsPanel summary={summary} />
       <AggregatesPanel summary={summary} />
-      <ExcludedPanel summary={summary} />
 
       <section className="panel" aria-labelledby={`${ids}-rows`}>
         <h2 id={`${ids}-rows`}>Rows</h2>

@@ -1,10 +1,12 @@
 import type { CacheDuration, Flag, Tier, VariantId, TokenClasses } from '../contracts'
 import type { Adapter, AdapterRow, RawRecord } from './types'
 import { ZERO_CACHE_WRITE, malformedRow, tok, toUtcIso } from './types'
+import { RowNotes, readServiceTier } from './openaiChat'
 
 /**
  * Source G: OpenTelemetry GenAI spans in OTLP JSON.
- * A record is one resourceSpans element (G-otlp) or one whole export request (G-otlp-jsonl).
+ * A record is an export request. For G-otlp the reader emits one per span, holding that span
+ * with its resource and scope; for G-otlp-jsonl it is one whole line.
  * Spans are buffered as compact records and classified in finish(), once the span tree is known.
  */
 
@@ -44,7 +46,8 @@ const TEXT_KEYS = [
   'gen_ai.openai.response.service_tier',
 ]
 
-const TIERS: Record<string, Tier> = { default: 'standard', standard: 'standard', flex: 'flex', priority: 'priority' }
+/** Tiers an OpenAI service_tier attribute may state (Chat Completions and Responses values). */
+const OTEL_TIERS: readonly Tier[] = ['standard', 'flex', 'priority', 'ultrafast']
 
 function isObj(v: unknown): v is Record<string, unknown> {
   return v !== null && typeof v === 'object' && !Array.isArray(v)
@@ -110,7 +113,8 @@ interface SpanEntry {
   provider: string | null
   model: string | null
   start: unknown
-  tier: string | null
+  /** service_tier attribute value and the key it was read from, or null when the span states none. */
+  tier: { key: string; value: unknown } | null
   raw: Record<string, unknown>
   /** Same traceId and spanId as an earlier span with usage. */
   duplicate: boolean
@@ -253,9 +257,14 @@ function spanRow(s: SpanEntry, u: SpanUsage, variant: VariantId): AdapterRow {
   let tierStated: Tier | null = null
   const raw = { ...s.raw }
   if (s.tier !== null) {
-    const t = TIERS[s.tier]
-    if (t) tierStated = t
-    else if (s.tier === 'scale') raw.service_tier = 'scale'
+    // Same mapping as the OpenAI response adapters: fast => priority, ultrafast as stated,
+    // scale kept in raw for pricing, anything else Unresolved.
+    const notes = new RowNotes()
+    tierStated = readServiceTier(s.tier.value, s.tier.key, OTEL_TIERS, notes)
+    mapping.push(...notes.mapping)
+    const reason = notes.reason()
+    if (reason !== null) unresolvedReason = unresolvedReason === null ? reason : `${unresolvedReason}; ${reason}`
+    if (s.tier.value === 'scale') raw.service_tier = 'scale'
   }
 
   if (s.model === null) flags.push('model_missing')
@@ -278,6 +287,16 @@ function spanRow(s: SpanEntry, u: SpanUsage, variant: VariantId): AdapterRow {
     counted: true,
     requests: 1,
   }
+}
+
+const TIER_KEYS = ['openai.response.service_tier', 'gen_ai.openai.response.service_tier'] as const
+
+function tierAttribute(attrs: Map<string, unknown>): { key: string; value: unknown } | null {
+  for (const key of TIER_KEYS) {
+    const value = attrs.get(key)
+    if (value !== undefined && value !== null && value !== '') return { key, value }
+  }
+  return null
 }
 
 function safeIso(v: unknown): string | null {
@@ -375,7 +394,7 @@ class OtelRun {
         provider: str(attrs.get('gen_ai.provider.name')) ?? str(attrs.get('gen_ai.system')),
         model: str(attrs.get('gen_ai.response.model')) ?? str(attrs.get('gen_ai.request.model')),
         start: span.startTimeUnixNano,
-        tier: str(attrs.get('openai.response.service_tier')) ?? str(attrs.get('gen_ai.openai.response.service_tier')),
+        tier: tierAttribute(attrs),
         raw,
       },
     })
@@ -443,7 +462,10 @@ class OtelRun {
       } else {
         row.counted = false
         row.flags.push('aggregate_span')
-        const parts = below.filter((d) => kind.get(d.key) !== 'unnamed' || !(countedBelow.get(d.key)?.length))
+        // fetch_response spans are left Unresolved (they should not report usage), so they are not
+        // part of what the aggregate is checked against.
+        const fetches = below.filter((d) => kind.get(d.key) === 'fetch')
+        const parts = below.filter((d) => kind.get(d.key) !== 'fetch' && (kind.get(d.key) !== 'unnamed' || !(countedBelow.get(d.key)?.length)))
         const sumIn = parts.reduce((a, d) => a + (d.usage?.input ?? 0), 0)
         const sumOut = parts.reduce((a, d) => a + (d.usage?.output ?? 0), 0)
         const ownIn = s.usage?.input ?? 0
@@ -453,7 +475,8 @@ class OtelRun {
         row.mapping.push(
           `not counted: "${s.op}" span usage aggregates its children. Own input ${ownIn}, output ${ownOut}; ` +
             `sum of ${parts.length} counted descendant span(s): input ${sumIn}, output ${sumOut}` +
-            (match ? ' (match)' : ' (mismatch)'),
+            (match ? ' (match)' : ' (mismatch)') +
+            (fetches.length > 0 ? `; ${fetches.length} fetch_response span(s) with usage left out of the sum` : ''),
         )
       }
     }

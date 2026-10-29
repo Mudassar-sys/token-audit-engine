@@ -2,6 +2,7 @@ import { sha256 } from '@noble/hashes/sha2.js'
 import { bytesToHex } from '@noble/hashes/utils.js'
 import { IdentityInputs, type VariantId } from './contracts'
 import { adapterForVariant } from './adapters/index'
+import { canonicalRoutingAssumptions } from './savings'
 
 /**
  * Canonical JSON: object keys sorted recursively, arrays kept in order, no whitespace.
@@ -73,11 +74,20 @@ export function createIncrementalSha256(): IncrementalSha256 {
 }
 
 /**
- * Calculation identity: SHA-256 of the canonical JSON of the validated inputs.
+ * Validated inputs with the routing assumptions in canonical form (sorted source models and
+ * input bands, decimals without redundant zeros), so the same calculation always hashes the same.
+ */
+export function canonicalIdentityInputs(inputs: IdentityInputs): IdentityInputs {
+  const parsed = IdentityInputs.parse(inputs)
+  return { ...parsed, routing: parsed.routing === null ? null : canonicalRoutingAssumptions(parsed.routing) }
+}
+
+/**
+ * Calculation identity: SHA-256 of the canonical JSON of the canonical validated inputs.
  * Unknown keys (such as an export time) are stripped by the schema, so they never change it.
  */
 export function calculationIdentity(inputs: IdentityInputs): string {
-  return sha256Hex(canonicalJson(IdentityInputs.parse(inputs)))
+  return sha256Hex(canonicalJson(canonicalIdentityInputs(inputs)))
 }
 
 /** The adapters (id and version) used for a variant. */

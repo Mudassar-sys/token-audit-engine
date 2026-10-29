@@ -415,6 +415,34 @@ legend {
   margin: 0.75rem 0 0;
 }
 
+.partial-tag {
+  display: inline-block;
+  background: var(--warn-bg);
+  color: var(--warn-text);
+  border-radius: 4px;
+  padding: 0 0.375rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.excluded {
+  border-top: 1px solid var(--border);
+  margin-top: 1rem;
+  padding-top: 0.5rem;
+}
+
+.policy {
+  margin: 0.5rem 0;
+  padding-left: 1.25rem;
+}
+
+.policy code {
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+}
+
 .kv {
   display: grid;
   grid-template-columns: minmax(9rem, max-content) 1fr;

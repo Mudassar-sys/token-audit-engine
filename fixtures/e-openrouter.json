@@ -30,8 +30,7 @@
         "cache_write_tokens": 100,
         "audio_tokens": 0
       },
-      "total_tokens": 196,
-      "is_byok": true
+      "total_tokens": 196
     },
     "provider": "Anthropic"
   },

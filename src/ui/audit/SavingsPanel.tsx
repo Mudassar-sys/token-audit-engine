@@ -1,6 +1,15 @@
 import { useId, useMemo, useState } from 'react'
 import type { AuditSummary, PricingSnapshot, RoutingAssumptions } from '../../engine/contracts'
-import { ASSUMPTION_LABEL, BASELINE_LABEL, modelBaseline, modelRouting, type BaselineResult, type RoutingResult } from '../../engine/savings'
+import {
+  ASSUMPTION_LABEL,
+  BASELINE_LABEL,
+  canonicalRoutingAssumptions,
+  modelBaseline,
+  modelRouting,
+  type BaselineResult,
+  type RoutingResult,
+} from '../../engine/savings'
+import { PARTIAL_TOTAL, loggedValue } from './display'
 
 export interface SavingsState {
   baselineModel: string | null
@@ -59,9 +68,10 @@ function draftToAssumptions(d: Draft): { value: RoutingAssumptions | null; error
   if (!/^\d+$/.test(d.routingOverheadTokens.trim())) return { value: null, error: 'Routing overhead must be a whole number of tokens.' }
   const pass = d.calibrationPassRate.trim()
   if (pass && !DECIMAL.test(pass)) return { value: null, error: 'Calibration pass rate must be a decimal such as 0.9, or empty.' }
+  // Canonical form, so click order or '0.50' versus '0.5' never changes the calculation identity.
   return {
     error: null,
-    value: {
+    value: canonicalRoutingAssumptions({
       sourceModels: d.sourceModels,
       inputBands: d.inputBands,
       targetModel: d.targetModel.trim(),
@@ -71,7 +81,7 @@ function draftToAssumptions(d: Draft): { value: RoutingAssumptions | null; error
       retryFallbackRate: d.retryFallbackRate.trim(),
       routingOverheadTokens: Number(d.routingOverheadTokens.trim()),
       calibrationPassRate: pass || null,
-    },
+    }),
   }
 }
 
@@ -141,7 +151,7 @@ export function SavingsPanel({ summary, snapshot, value, onChange }: Props) {
           <dl className="stats">
             <div>
               <dt>Logged value of repriced rows</dt>
-              <dd>{value.baseline.actual.displayUsd}</dd>
+              <LoggedValue amount={value.baseline.actual} skipped={value.baseline.skipped} />
             </div>
             <div>
               <dt>{BASELINE_LABEL}</dt>
@@ -204,7 +214,7 @@ export function SavingsPanel({ summary, snapshot, value, onChange }: Props) {
           <dl className="stats">
             <div>
               <dt>Logged value of priced rows</dt>
-              <dd>{value.routingResult.original.displayUsd}</dd>
+              <LoggedValue amount={value.routingResult.original} skipped={value.routingResult.skipped} />
             </div>
             <div>
               <dt>Scenario value</dt>
@@ -231,6 +241,23 @@ function NumberField({ id, label, value, onChange }: { id: string; label: string
       <label htmlFor={id}>{label}</label>
       <input id={id} inputMode="decimal" value={value} onChange={(e) => onChange(e.target.value)} autoComplete="off" />
     </div>
+  )
+}
+
+function LoggedValue({ amount, skipped }: { amount: { displayUsd: string }; skipped: readonly unknown[] }) {
+  const { text, partial } = loggedValue(amount, skipped)
+  return (
+    <dd>
+      {text}
+      {partial && (
+        <>
+          {' '}
+          <span className="partial-tag" data-testid="logged-partial">
+            {PARTIAL_TOTAL}
+          </span>
+        </>
+      )}
+    </dd>
   )
 }
 

@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react'
+import { useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import type { AuditRow } from '../../engine/contracts'
 import type { EngineClient } from '../engineClient'
-import { displayUsd, formatInt, sumCacheWrite } from '../format'
+import { formatInt, sumCacheWrite } from '../format'
+import { rowValueText } from './display'
+import { RowPageCache } from './rowPages'
 
 const PAGE = 100
 const ROW_HEIGHT = 36
@@ -15,7 +17,8 @@ interface Props {
 }
 
 /**
- * Virtualized, keyboard-operable row table. Only visible pages of rows are fetched from the worker.
+ * Virtualized, keyboard-operable row table. Only visible pages of rows are fetched from the worker,
+ * and only pages near the visible rows stay in memory.
  * Arrow keys, Page Up, Page Down, Home and End move between rows; Enter or Space opens the explanation.
  * Mount it with key={auditId} so a new audit starts with an empty cache.
  */
@@ -23,8 +26,8 @@ export function RowTable({ client, rowCount, onOpen }: Props) {
   const ids = useId()
   const scrollRef = useRef<HTMLDivElement>(null)
   const headRef = useRef<HTMLDivElement>(null)
-  const [pages, setPages] = useState<Map<number, AuditRow[]>>(() => new Map())
-  const requested = useRef(new Set<number>())
+  const [, setVersion] = useState(0)
+  const [cache] = useState(() => new RowPageCache<AuditRow>((offset, limit) => client.rows(offset, limit), () => setVersion((v) => v + 1), PAGE))
   const [active, setActive] = useState(0)
   const focusPending = useRef(false)
   const [headHeight, setHeadHeight] = useState(ROW_HEIGHT)
@@ -45,24 +48,10 @@ export function RowTable({ client, rowCount, onOpen }: Props) {
   const last = items[items.length - 1]?.index ?? -1
 
   useEffect(() => {
-    if (last < 0) return
-    for (let p = Math.floor(first / PAGE); p <= Math.floor(last / PAGE); p++) {
-      if (requested.current.has(p)) continue
-      requested.current.add(p)
-      client.rows(p * PAGE, PAGE).then(
-        (rows) => setPages((m) => new Map(m).set(p, rows)),
-        () => requested.current.delete(p),
-      )
-    }
-  }, [first, last, client])
+    cache.show(first, last)
+  }, [first, last, cache])
 
-  const rowAt = useCallback(
-    (i: number): AuditRow | undefined => {
-      const page = pages.get(Math.floor(i / PAGE))
-      return page?.find((r) => r.rowIndex === i) ?? page?.[i % PAGE]
-    },
-    [pages],
-  )
+  const rowAt = (i: number): AuditRow | undefined => cache.rowAt(i)
 
   useEffect(() => {
     if (!focusPending.current) return
@@ -179,7 +168,7 @@ function RowCells({ row }: { row: AuditRow }) {
     formatInt(t.cacheRead),
     formatInt(sumCacheWrite(t.cacheWrite)),
     formatInt(t.output),
-    row.cost.valueUsd === null ? 'no value' : displayUsd(row.cost.valueUsd),
+    rowValueText(row),
     row.counted ? row.cost.label.kind : `${row.cost.label.kind}, not counted`,
   ]
   return (
