@@ -4,7 +4,8 @@
  * Usage: BASE_URL=https://example.test npx tsx scripts/record-walkthrough.ts
  * Writes walkthrough/raw.webm and a JSON timeline of the steps (milliseconds from the start).
  */
-import { mkdirSync, readdirSync, renameSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readdirSync, renameSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { chromium, type Page } from '@playwright/test'
 
@@ -15,16 +16,21 @@ mkdirSync(out, { recursive: true })
 
 const timeline: { step: string; atMs: number }[] = []
 const started = Date.now()
-const mark = (step: string) => timeline.push({ step, atMs: Date.now() - started })
+const mark = (step: string) => {
+  timeline.push({ step, atMs: Date.now() - started })
+  console.log(`${step} at ${Date.now() - started} ms`)
+}
 const pause = (page: Page, ms: number) => page.waitForTimeout(ms)
 
-const browser = await chromium.launch({ channel: process.env.PW_CHANNEL })
-const context = await browser.newContext({
+// A persistent profile keeps IndexedDB on disk, as a normal browser profile does.
+const profile = mkdtempSync(join(tmpdir(), 'walkthrough-profile-'))
+const context = await chromium.launchPersistentContext(profile, {
+  channel: process.env.PW_CHANNEL,
   viewport: { width: 1280, height: 800 },
   recordVideo: { dir: out, size: { width: 1280, height: 800 } },
   acceptDownloads: true,
 })
-const page = await context.newPage()
+const page = context.pages()[0] ?? (await context.newPage())
 try {
   await page.goto(`${baseURL}/#/import`)
   mark('open')
@@ -32,11 +38,11 @@ try {
 
   await page.getByTestId('generate-sample').click()
   mark('generate')
-  await page.getByTestId('detected-variant').waitFor({ timeout: 300_000 })
+  await page.getByTestId('detected-variant').waitFor({ timeout: 120_000 })
   await pause(page, 1500)
   await page.getByTestId('import-button').click()
   mark('import')
-  await page.getByTestId('coverage-panel').waitFor({ timeout: 600_000 })
+  await page.getByTestId('coverage-panel').waitFor({ timeout: 240_000 })
   mark('imported')
   await pause(page, 3000)
 
@@ -62,16 +68,23 @@ try {
     await page.keyboard.press('Escape')
   }
 
-  await page.getByTestId('savings-panel').scrollIntoViewIfNeeded()
+  const savings = page.getByTestId('savings-panel')
+  await savings.scrollIntoViewIfNeeded()
   mark('savings')
-  await pause(page, 2000)
-  const share = page.getByTestId('savings-panel').getByLabel(/eligible share/i)
-  if (await share.count()) {
-    await share.fill('0.5')
-    await pause(page, 3500)
-  }
+  await savings.getByLabel('Baseline model', { exact: true }).fill('gpt-4o-mini')
+  await savings.getByRole('button', { name: 'Model the baseline' }).click()
+  await pause(page, 3500)
+  await savings.getByLabel('Target model', { exact: true }).fill('gpt-4o-mini')
+  await savings.getByLabel('Eligible share (0 to 1)').fill('0.5')
+  await savings.getByLabel('Retry and fallback rate').fill('0.05')
+  await savings.getByRole('button', { name: 'Model the routing scenario' }).click()
+  await pause(page, 1000)
+  await savings.getByRole('button', { name: 'Model the routing scenario' }).scrollIntoViewIfNeeded()
+  await page.mouse.wheel(0, 250)
+  await pause(page, 5000)
 
   await page.getByTestId('export-csv').scrollIntoViewIfNeeded()
+  mark('export-start')
   const csv = page.waitForEvent('download')
   await page.getByTestId('export-csv').click()
   await csv
@@ -86,9 +99,12 @@ try {
   mark('privacy')
   await pause(page, 5000)
   mark('end')
+} catch (err) {
+  await page.screenshot({ path: join(out, 'failure.png') }).catch(() => undefined)
+  throw err
 } finally {
   await context.close()
-  await browser.close()
+  rmSync(profile, { recursive: true, force: true })
 }
 
 const video = readdirSync(out).find((f) => f.endsWith('.webm') && f !== 'raw.webm')
