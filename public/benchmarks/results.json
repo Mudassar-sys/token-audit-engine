@@ -1,1 +1,39 @@
-{"results": []}
+{
+  "results": [
+    {
+      "recordedAt": "2026-10-29T14:06:50.334Z",
+      "engineVersion": "1.0.0",
+      "cpuCores": 8,
+      "memoryClass": 16,
+      "browser": "Google Chrome 156.0.8078.73",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.8078.4 Safari/537.36",
+      "crossOriginIsolated": true,
+      "fileBytes": 209715200,
+      "rows": 402191,
+      "columns": 29,
+      "sourceMix": {
+        "openai": 221119,
+        "hosted_vllm": 4046,
+        "codestral": 32110,
+        "anthropic": 108692,
+        "gemini": 36224
+      },
+      "sampleGenerationMs": 4529,
+      "totalMs": 52800,
+      "rowsPerSecond": 7617,
+      "importedRows": 402191,
+      "peakMemory": 76024815,
+      "cancelMs": 264,
+      "partialDeleteMs": 1646,
+      "cancelTotalMs": 2122,
+      "cancelAtBytes": 104857600,
+      "partialRowsDeleted": true,
+      "longTasks": {
+        "count": 0,
+        "totalMs": 0,
+        "maxMs": 0
+      },
+      "site": "https://token-audit-engine.vercel.app"
+    }
+  ]
+}

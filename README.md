@@ -10,7 +10,7 @@ A browser-only app that reads model usage logs, prices every row by token class,
 
 Each claim below is backed by a passing test in this repository or by the recorded benchmark in [BENCHMARK.md](BENCHMARK.md).
 
-- **Large files stay responsive.** A 200 MB synthetic log is generated, imported, cancelled midway and imported again in the browser. The recorded run, its device and its numbers are in [BENCHMARK.md](BENCHMARK.md) (`tests/e2e/benchmark.spec.ts`).
+- **Large files stay responsive.** A 200 MB synthetic log is generated, imported, cancelled midway and imported again in the browser. In the recorded run on the live site (Chrome on an 8-core machine), 402,191 rows were imported in 52.8 seconds with no main-thread task of 50 ms or more, and a cancel stopped processing in 264 ms. Device, method and every field are in [BENCHMARK.md](BENCHMARK.md) (`tests/e2e/benchmark.spec.ts`).
 - **Five vendor formats and custom CSV are read correctly.** OpenAI, Anthropic, OpenRouter, LiteLLM and OpenTelemetry logs, plus any other CSV through a column mapping. Every supported variant below has a fixture with expected token classes (`tests/unit/adapters-*.test.ts`, `tests/unit/detect.test.ts`) and imports through the UI (`tests/e2e/fixtures.spec.ts`).
 - **Every row is priced by token class.** Uncached input, cache reads, cache writes by duration and output are priced separately. Reasoning tokens are shown inside output and never added on top (`tests/unit/pricing.test.ts`, `tests/unit/properties.test.ts`).
 - **Money is exact.** Rates keep their original decimal text and are converted to integer femto-dollars. Row costs and totals are integer sums. Rounding happens only for display.
