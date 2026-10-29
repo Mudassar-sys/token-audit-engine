@@ -3,13 +3,20 @@ import type { AuditRow, AuditSummary } from '../engine/contracts'
 
 /**
  * Local row store in IndexedDB. Audit rows never leave the browser.
- * Rows are keyed by [auditId, rowIndex] so one audit reads back in stream order.
+ * Rows are kept in chunks: one record per contiguous run of rows, keyed by [auditId, first rowIndex].
+ * A 200 MB import then writes and deletes a few hundred records instead of hundreds of thousands.
  */
 
 export const DB_NAME = 'token-audit'
-export const DB_VERSION = 1
+export const DB_VERSION = 2
 
-export type StoredRow = AuditRow & { auditId: string }
+/** One stored chunk: rows first..last of one audit, in order. */
+export interface RowChunk {
+  auditId: string
+  first: number
+  last: number
+  rows: AuditRow[]
+}
 
 export interface AuditRecord {
   auditId: string
@@ -20,7 +27,7 @@ export interface AuditRecord {
 }
 
 interface AuditDb extends DBSchema {
-  rows: { key: [string, number]; value: StoredRow }
+  chunks: { key: [string, number]; value: RowChunk }
   audits: { key: string; value: AuditRecord }
 }
 
@@ -58,7 +65,10 @@ export function openStore(): Promise<IDBPDatabase<AuditDb>> {
   if (!dbPromise) {
     dbPromise = openDB<AuditDb>(DB_NAME, DB_VERSION, {
       upgrade(db) {
-        if (!db.objectStoreNames.contains('rows')) db.createObjectStore('rows', { keyPath: ['auditId', 'rowIndex'] })
+        // Version 1 kept one record per row. Those rows are local scratch data, so the old store is dropped.
+        const raw = db as unknown as IDBDatabase
+        if (raw.objectStoreNames.contains('rows')) raw.deleteObjectStore('rows')
+        if (!db.objectStoreNames.contains('chunks')) db.createObjectStore('chunks', { keyPath: ['auditId', 'first'] })
         if (!db.objectStoreNames.contains('audits')) db.createObjectStore('audits', { keyPath: 'auditId' })
       },
       blocking() {
@@ -88,26 +98,34 @@ export async function closeStore(): Promise<void> {
   }
 }
 
-function rowRange(auditId: string, from = -Infinity): IDBKeyRange {
-  return IDBKeyRange.bound([auditId, from], [auditId, Infinity])
+function chunkRange(auditId: string, from = -Infinity, to = Infinity): IDBKeyRange {
+  return IDBKeyRange.bound([auditId, from], [auditId, to])
 }
 
-function stripAuditId(stored: StoredRow): AuditRow {
-  const row: Partial<StoredRow> = { ...stored }
-  delete row.auditId
-  return row as AuditRow
+/** Split rows into runs of consecutive rowIndex values. */
+function contiguousRuns(rows: readonly AuditRow[]): AuditRow[][] {
+  const sorted = [...rows].sort((a, b) => a.rowIndex - b.rowIndex)
+  const runs: AuditRow[][] = []
+  for (const row of sorted) {
+    const run = runs[runs.length - 1]
+    if (run && run[run.length - 1]!.rowIndex + 1 === row.rowIndex) run.push(row)
+    else runs.push([row])
+  }
+  return runs
 }
 
 /** Store one batch of rows in a single transaction. Throws StoreQuotaError when storage is full. */
 export async function putRows(auditId: string, rows: readonly AuditRow[]): Promise<void> {
   if (rows.length === 0) return
   const db = await openStore()
-  const tx = db.transaction('rows', 'readwrite')
+  const tx = db.transaction('chunks', 'readwrite')
   // Request errors surface through tx.done; swallow per-request rejections so none goes unhandled.
   const done = tx.done
   done.catch(() => undefined)
   try {
-    for (const row of rows) tx.store.put({ ...row, auditId }).catch(() => undefined)
+    for (const run of contiguousRuns(rows)) {
+      tx.store.put({ auditId, first: run[0]!.rowIndex, last: run[run.length - 1]!.rowIndex, rows: run }).catch(() => undefined)
+    }
     await done
   } catch (err) {
     try {
@@ -122,35 +140,64 @@ export async function putRows(auditId: string, rows: readonly AuditRow[]): Promi
 /** Rows of one audit starting at rowIndex `offset`, at most `limit`, in row order. */
 export async function getRows(auditId: string, offset: number, limit: number): Promise<AuditRow[]> {
   if (limit <= 0) return []
+  const from = Math.max(0, offset)
   const db = await openStore()
-  const rows = await db.getAll('rows', rowRange(auditId, Math.max(0, offset)), limit)
-  return rows.map(stripAuditId)
+  const tx = db.transaction('chunks', 'readonly')
+  const out: AuditRow[] = []
+  // The chunk holding `from` starts at or before it.
+  const before = await tx.store.openCursor(chunkRange(auditId, -Infinity, from), 'prev')
+  let cursor = await tx.store.openCursor(chunkRange(auditId, before ? before.value.first : from))
+  while (cursor && out.length < limit) {
+    for (const row of cursor.value.rows) {
+      if (row.rowIndex < from) continue
+      out.push(row)
+      if (out.length >= limit) break
+    }
+    cursor = out.length < limit ? await cursor.continue() : null
+  }
+  await tx.done
+  return out
 }
 
 /** One row by its index, or null. */
 export async function getRow(auditId: string, rowIndex: number): Promise<AuditRow | null> {
-  const db = await openStore()
-  const row = await db.get('rows', [auditId, rowIndex])
-  return row ? stripAuditId(row) : null
+  const [row] = await getRows(auditId, rowIndex, 1)
+  return row && row.rowIndex === rowIndex ? row : null
 }
 
-/** Walk every row of an audit in order, one batch at a time. The callback may be async. */
+/** Chunks read per step while iterating, which keeps memory bounded. */
+const ITERATE_CHUNKS = 4
+
+/** Walk every row of an audit in order, `batchSize` rows at a time (the last batch may be smaller). */
 export async function iterateRows(
   auditId: string,
   batchSize: number,
   cb: (rows: AuditRow[]) => void | Promise<void>,
 ): Promise<number> {
   const size = Math.max(1, Math.floor(batchSize))
-  let next = 0
+  let next = -Infinity
   let total = 0
+  let pending: AuditRow[] = []
   for (;;) {
     const db = await openStore()
-    const batch = await db.getAll('rows', rowRange(auditId, next), size)
-    if (batch.length === 0) break
-    total += batch.length
-    next = batch[batch.length - 1]!.rowIndex + 1
-    await cb(batch.map(stripAuditId))
-    if (batch.length < size) break
+    // The read transaction ends before the callback runs, so a slow callback never holds it open.
+    const chunks = await db.getAll('chunks', chunkRange(auditId, next), ITERATE_CHUNKS)
+    if (chunks.length === 0) break
+    for (const chunk of chunks) {
+      pending.push(...chunk.rows)
+      next = chunk.first + 1
+      while (pending.length >= size) {
+        const batch = pending.slice(0, size)
+        pending = pending.slice(size)
+        total += batch.length
+        await cb(batch)
+      }
+    }
+    if (chunks.length < ITERATE_CHUNKS) break
+  }
+  if (pending.length > 0) {
+    total += pending.length
+    await cb(pending)
   }
   return total
 }
@@ -158,7 +205,15 @@ export async function iterateRows(
 /** Number of stored rows of one audit. */
 export async function countRows(auditId: string): Promise<number> {
   const db = await openStore()
-  return db.count('rows', rowRange(auditId))
+  const tx = db.transaction('chunks', 'readonly')
+  let n = 0
+  let cursor = await tx.store.openCursor(chunkRange(auditId))
+  while (cursor) {
+    n += cursor.value.last - cursor.value.first + 1
+    cursor = await cursor.continue()
+  }
+  await tx.done
+  return n
 }
 
 export async function putAudit(record: AuditRecord): Promise<void> {
@@ -183,8 +238,8 @@ export async function listAuditIds(): Promise<string[]> {
 /** Delete an audit record and all of its rows. */
 export async function deleteAudit(auditId: string): Promise<void> {
   const db = await openStore()
-  const tx = db.transaction(['rows', 'audits'], 'readwrite')
-  await Promise.all([tx.objectStore('rows').delete(rowRange(auditId)), tx.objectStore('audits').delete(auditId), tx.done])
+  const tx = db.transaction(['chunks', 'audits'], 'readwrite')
+  await Promise.all([tx.objectStore('chunks').delete(chunkRange(auditId)), tx.objectStore('audits').delete(auditId), tx.done])
 }
 
 /** Delete the whole database. */

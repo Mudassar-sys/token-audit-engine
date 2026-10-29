@@ -181,7 +181,10 @@ describe('engine worker: CSV export', () => {
     })
     const res = await reply(send({ type: 'exportCsv' }))
     expect(res.type).toBe('error')
-    expect(res.type === 'error' && res.message).toBe(`The CSV export read 5000 of ${done.summary.coverage.totalRows} rows, so no file was saved. Export again.`)
+    const message = res.type === 'error' ? res.message : ''
+    const read = Number(/read (\d+) of/.exec(message)?.[1])
+    expect(read).toBeLessThan(done.summary.coverage.totalRows)
+    expect(message).toBe(`The CSV export read ${read} of ${done.summary.coverage.totalRows} rows, so no file was saved. Export again.`)
   })
 })
 

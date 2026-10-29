@@ -134,10 +134,11 @@ describe('store', () => {
     let calls = 0
     vi.spyOn(proto, 'put').mockImplementation(function (this: unknown, ...args: unknown[]) {
       calls++
-      if (calls === 3) throw new DOMException('The quota has been exceeded.', 'QuotaExceededError')
+      if (calls === 2) throw new DOMException('The quota has been exceeded.', 'QuotaExceededError')
       return original.apply(this, args)
     })
-    const err = await putRows('audit-q', rows(0, 5)).catch((e: unknown) => e)
+    // Two separate runs make two chunk records in one transaction; the second write fails.
+    const err = await putRows('audit-q', [...rows(0, 3), ...rows(10, 2)]).catch((e: unknown) => e)
     expect(err).toBeInstanceOf(StoreQuotaError)
     expect((err as StoreQuotaError).code).toBe('quota')
     expect((err as Error).message).toMatch(/Local storage is full/)
