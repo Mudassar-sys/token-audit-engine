@@ -43,7 +43,10 @@ export function BenchmarkPage({ client, pricing, importBusy, onStart, onEnd }: P
       const saved = loadSavedResults()
       setSession((prev) => (saved.some((r) => r.recordedAt === result.recordedAt) ? saved : [...prev, result]))
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
+      const message = err instanceof Error ? err.message : String(err)
+      // Exposed for automation, beside window.__benchmarkResult.
+      ;(globalThis as { __benchmarkError?: string }).__benchmarkError = message
+      setError(message)
       setStatus('')
     } finally {
       setRunning(false)
