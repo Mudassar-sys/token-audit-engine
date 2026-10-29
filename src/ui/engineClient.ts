@@ -7,6 +7,8 @@ import type {
   NormalizedUsageRow,
   PricingSnapshot,
   Progress,
+  ScenarioRequest,
+  ScenarioResult,
   VariantId,
   WorkerRequest,
   WorkerResponse,
@@ -21,9 +23,26 @@ export class EngineError extends Error {
   }
 }
 
-export type ImportOutcome =
-  | { kind: 'done'; summary: AuditSummary }
-  | { kind: 'cancelled'; cancelMs: number; deleteMs: number; partialRowsDeleted: boolean }
+export interface CancelOutcome {
+  cancelMs: number
+  deleteMs: number
+  partialRowsDeleted: boolean
+  /** The cancelled import's audit id, or null when no import was running. */
+  auditId: string | null
+}
+
+export type ImportOutcome = { kind: 'done'; summary: AuditSummary } | ({ kind: 'cancelled' } & CancelOutcome)
+
+export interface ExportResult {
+  /** 'stream': written to the chosen file handle. 'blob': returned as a Blob to download. */
+  path: 'stream' | 'blob'
+  /** null on the stream path. */
+  blob: Blob | null
+  rows: number
+  /** UTF-8 bytes written, header included. */
+  bytes: number
+  ms: number
+}
 
 export interface ImportRequest {
   file: Blob
@@ -43,6 +62,11 @@ export interface SampleResult {
   columns: number
   sourceMix: Record<string, number>
   ms: number
+  seed: number
+  /** SHA-256 of the exact file bytes, padding included. */
+  sha256: string
+  expectedNotPriced: number
+  expectedUnresolved: number
 }
 
 interface Pending {
@@ -132,7 +156,7 @@ export class EngineClient {
               return true
             case 'cancelled':
               this.importInFlight = false
-              resolve({ kind: 'cancelled', cancelMs: res.cancelMs, deleteMs: res.deleteMs, partialRowsDeleted: res.partialRowsDeleted })
+              resolve({ kind: 'cancelled', cancelMs: res.cancelMs, deleteMs: res.deleteMs, partialRowsDeleted: res.partialRowsDeleted, auditId: res.auditId })
               return true
             case 'error':
               this.importInFlight = false
@@ -151,9 +175,22 @@ export class EngineClient {
   }
 
   /** Ask the running import to stop. Resolves when the worker confirms, after partial rows are deleted. */
-  async cancel(): Promise<{ cancelMs: number; deleteMs: number; partialRowsDeleted: boolean }> {
+  async cancel(): Promise<CancelOutcome> {
     const res = await this.call({ type: 'cancel' }, 'cancelled')
-    return { cancelMs: res.cancelMs, deleteMs: res.deleteMs, partialRowsDeleted: res.partialRowsDeleted }
+    return { cancelMs: res.cancelMs, deleteMs: res.deleteMs, partialRowsDeleted: res.partialRowsDeleted, auditId: res.auditId }
+  }
+
+  /** Number of rows stored for an audit. 0 after a cancelled import deleted its partial rows. */
+  async countRows(auditId: string): Promise<number> {
+    return (await this.call({ type: 'countRows', auditId }, 'count')).rows
+  }
+
+  /** Reprice the open audit's rows under a scenario, in the worker. */
+  async scenario(request: ScenarioRequest, onProgress?: (p: { rowsDone: number; rowsTotal: number }) => void): Promise<ScenarioResult> {
+    const res = await this.call({ type: 'scenario', request }, 'scenario', (other) => {
+      if (other.type === 'scenarioProgress') onProgress?.({ rowsDone: other.rowsDone, rowsTotal: other.rowsTotal })
+    })
+    return res.result
   }
 
   async rows(offset: number, limit: number): Promise<AuditRow[]> {
@@ -169,9 +206,15 @@ export class EngineClient {
     return { rows: res.rows, errors: res.errors }
   }
 
-  async exportCsv(): Promise<{ blob: Blob; rows: number }> {
-    const res = await this.call({ type: 'exportCsv' }, 'csv')
-    return { blob: res.blob as Blob, rows: res.rows }
+  /**
+   * Export the open audit's rows as CSV. With a file handle the worker streams into it;
+   * with null it returns a Blob built from parts of about 8 MiB.
+   */
+  async exportCsv(target: FileSystemFileHandle | null, onProgress?: (p: { rows: number; bytes: number }) => void): Promise<ExportResult> {
+    const res = await this.call({ type: 'exportCsv', target }, 'csv', (other) => {
+      if (other.type === 'exportProgress') onProgress?.({ rows: other.rows, bytes: other.bytes })
+    })
+    return { path: res.path, blob: (res.blob as Blob | null) ?? null, rows: res.rows, bytes: res.bytes, ms: res.ms }
   }
 
   async clear(): Promise<void> {
@@ -187,7 +230,18 @@ export class EngineClient {
     const res = await this.call({ type: 'generateSample', bytes, seed }, 'sample', (other) => {
       if (other.type === 'sampleProgress') onProgress?.(other.bytes)
     })
-    return { file: res.file as File, bytes: res.bytes, rows: res.rows, columns: res.columns, sourceMix: res.sourceMix, ms: res.ms }
+    return {
+      file: res.file as File,
+      bytes: res.bytes,
+      rows: res.rows,
+      columns: res.columns,
+      sourceMix: res.sourceMix,
+      ms: res.ms,
+      seed: res.seed,
+      sha256: res.sha256,
+      expectedNotPriced: res.expectedNotPriced,
+      expectedUnresolved: res.expectedUnresolved,
+    }
   }
 
   terminate(): void {

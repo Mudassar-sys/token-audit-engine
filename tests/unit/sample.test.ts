@@ -1,15 +1,37 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import Papa from 'papaparse'
 import { describe, expect, it } from 'vitest'
 import { adapterForVariant } from '../../src/engine/adapters/index'
+import { PricingSnapshot } from '../../src/engine/contracts'
+import { contextThresholds } from '../../src/engine/pricing'
 import {
   generateSampleChunks,
+  generateSampleRows,
   mulberry32,
   SAMPLE_CHUNK_BYTES,
   SAMPLE_COLUMNS,
+  SAMPLE_MAX_PROMPT_TOKENS,
   SAMPLE_UNKNOWN_MODELS,
+  SAMPLE_WRITE_PROVIDERS,
   type SampleStats,
 } from '../../src/engine/sample'
+import { countCsvDataRows, createCsvRecordCounter } from '../../src/ui/benchmark'
 import { TEST_SNAPSHOT } from './helpers/testSnapshot'
+
+/** The stored snapshot the app ships and the benchmark prices with. */
+const STORED = PricingSnapshot.parse(
+  JSON.parse(readFileSync(join(process.cwd(), 'public', 'pricing', '2026-10-29-aa992e3f.json'), 'utf8')),
+)
+
+function usageOf(r: Record<string, string>): { read: number; write: number } {
+  const u = (JSON.parse(r.metadata ?? '{}') as { additional_usage_values: Record<string, unknown> }).additional_usage_values
+  const pd = (u.prompt_tokens_details ?? {}) as Record<string, number>
+  return {
+    read: Number(u.cache_read_input_tokens ?? pd.cached_tokens ?? 0),
+    write: Number(u.cache_creation_input_tokens ?? pd.cache_write_tokens ?? 0),
+  }
+}
 
 function generate(target: number, seed: number): { chunks: string[]; stats: SampleStats } {
   const it = generateSampleChunks(target, seed)
@@ -134,6 +156,112 @@ describe('generateSampleChunks', () => {
   })
 
   it('a target below the header size yields nothing', () => {
-    expect(generate(10, 1)).toEqual({ chunks: [], stats: { bytes: 0, rows: 0, columns: SAMPLE_COLUMNS.length, sourceMix: {} } })
+    expect(generate(10, 1)).toEqual({
+      chunks: [],
+      stats: { bytes: 0, rows: 0, columns: SAMPLE_COLUMNS.length, sourceMix: {}, seed: 1, expectedNotPriced: 0, expectedUnresolved: 0 },
+    })
+  })
+
+  it('stats carry the seed and the rows written to be Not priced and Unresolved', () => {
+    expect(stats.seed).toBe(42)
+    const unknown = (m: string | undefined) => (SAMPLE_UNKNOWN_MODELS as readonly string[]).includes(m ?? '')
+    const notPriced = rows.filter((r) => unknown(r.model))
+    // Spend 0 on a listed model whose rates are not all zero. Unknown models stay Not priced even at spend 0.
+    const unresolved = rows.filter((r) => {
+      const entry = r.model ? STORED.models[r.model] : undefined
+      return entry !== undefined && Number(r.spend) === 0 && Object.values(entry.rates).some((v) => Number(v) !== 0)
+    })
+    expect(stats.expectedNotPriced).toBe(notPriced.length)
+    expect(stats.expectedUnresolved).toBe(unresolved.length)
+    expect(notPriced.length).toBeGreaterThan(0)
+    expect(unresolved.length).toBeGreaterThan(0)
+  })
+})
+
+describe('sample rows the engine can price', () => {
+  const { chunks, stats } = generateSampleRows(6000, 7)
+  const rows = Papa.parse<Record<string, string>>(chunks.join(''), { header: true, skipEmptyLines: true }).data
+
+  it('always writes prompt_tokens and completion_tokens as integers', () => {
+    for (const r of rows) {
+      expect(r.prompt_tokens).toMatch(/^\d+$/)
+      expect(r.completion_tokens).toMatch(/^\d+$/)
+    }
+  })
+
+  it('writes cache writes only for providers with a documented duration, on models with a write rate', () => {
+    let writes = 0
+    for (const r of rows) {
+      if (usageOf(r).write === 0) continue
+      writes++
+      expect(SAMPLE_WRITE_PROVIDERS.has(r.custom_llm_provider ?? '')).toBe(true)
+      expect(STORED.models[r.model ?? '']?.rates.cache_creation_input_token_cost).toBeDefined()
+    }
+    expect(writes).toBeGreaterThan(0)
+    for (const provider of ['gemini', 'codestral', 'hosted_vllm']) expect(SAMPLE_WRITE_PROVIDERS.has(provider)).toBe(false)
+  })
+
+  it('keeps every prompt below the long-context thresholds of its model', () => {
+    let largest = 0
+    for (const r of rows) {
+      const prompt = Number(r.prompt_tokens)
+      largest = Math.max(largest, prompt)
+      expect(prompt).toBeLessThanOrEqual(SAMPLE_MAX_PROMPT_TOKENS)
+      const entry = STORED.models[r.model ?? '']
+      if (entry) for (const th of contextThresholds(entry)) expect(prompt).toBeLessThanOrEqual(th)
+    }
+    expect(largest).toBeGreaterThan(100_000)
+  })
+
+  it('every listed model has the rates its rows need', () => {
+    for (const r of rows) {
+      const entry = STORED.models[r.model ?? '']
+      if (!entry) continue
+      const { read, write } = usageOf(r)
+      if (Number(r.prompt_tokens) - read - write > 0) expect(entry.rates.input_cost_per_token).toBeDefined()
+      if (read > 0) expect(entry.rates.cache_read_input_token_cost).toBeDefined()
+      expect(entry.rates.output_cost_per_token).toBeDefined()
+    }
+  })
+
+  it('generateSampleRows writes exactly the asked rows, the same rows as generateSampleChunks', () => {
+    expect(rows).toHaveLength(6000)
+    expect(stats.rows).toBe(6000)
+    expect(stats.seed).toBe(7)
+    const text = chunks.join('')
+    expect(stats.bytes).toBe(text.length)
+    const prefix = generate(stats.bytes, 7)
+    expect(prefix.chunks.join('')).toBe(text)
+    expect(prefix.stats).toEqual(stats)
+    const header = `${SAMPLE_COLUMNS.join(',')}\n`
+    expect(generateSampleRows(0, 7)).toEqual({
+      chunks: [header],
+      stats: { bytes: header.length, rows: 0, columns: SAMPLE_COLUMNS.length, sourceMix: {}, seed: 7, expectedNotPriced: 0, expectedUnresolved: 0 },
+    })
+    expect(() => generateSampleRows(-1, 7)).toThrow(RangeError)
+  })
+})
+
+describe('CSV record counter used to read the benchmark export back', () => {
+  function count(text: string, step: number): number {
+    const c = createCsvRecordCounter()
+    for (let i = 0; i < text.length; i += step) c.push(text.slice(i, i + step))
+    return c.finish()
+  }
+
+  it('counts records, not lines, at every split point', () => {
+    const text = 'a,b,c\r\n1,"x\ny",2\r\n"he said ""hi""",",",\n\n3,"",\r\n"multi\r\nline\r\n"\n4,5,6'
+    // Records: header, 1, "he said", 3, "multi", 4. The blank line is not a record.
+    const expected = 6
+    for (const step of [1, 2, 3, 5, 7, 11, text.length]) expect(count(text, step)).toBe(expected)
+    expect(count('', 1)).toBe(0)
+    expect(count('\n\r\n', 1)).toBe(0)
+    expect(count('only header\n', 4)).toBe(1)
+  })
+
+  it('agrees with the sample row count, quoted JSON cells included', async () => {
+    const { chunks, stats } = generateSampleRows(1500, 3)
+    expect(count(chunks.join(''), 4093)).toBe(stats.rows + 1)
+    expect(await countCsvDataRows(new Blob(chunks))).toBe(stats.rows)
   })
 })

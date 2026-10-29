@@ -108,6 +108,46 @@ function pluralRows(n: number): string {
   return `${n} ${n === 1 ? 'row' : 'rows'}`
 }
 
+/** Distinct left-out reasons kept per label kind; further reasons count under other reasons. */
+export const LEFT_OUT_REASON_CAP = 100
+const OTHER_REASONS = 'other reasons'
+/** Reasons named in the partial total text; the rest are summed as other reasons. */
+const NAMED_REASONS = 3
+
+/**
+ * Short form of a label reason for the partial total: its first clause, before "; " or ", ".
+ * "output tokens missing, cost would be understated" reads "output tokens missing".
+ */
+export function shortReason(reason: string): string {
+  const cut = reason.split(/; |, /)[0]!.trim()
+  return cut === '' ? 'no reason given' : cut
+}
+
+/** Bounded count of left-out rows by short reason. */
+class ReasonCounts {
+  private readonly counts = new Map<string, number>()
+
+  add(reason: string): void {
+    let k = shortReason(reason)
+    if (!this.counts.has(k) && this.counts.size >= LEFT_OUT_REASON_CAP) k = OTHER_REASONS
+    this.counts.set(k, (this.counts.get(k) ?? 0) + 1)
+  }
+
+  /** " (reason)" for a single reason, else " (reason: 2; other: 1)" by count, naming at most NAMED_REASONS. */
+  text(): string {
+    const other = this.counts.get(OTHER_REASONS) ?? 0
+    const list = [...this.counts.entries()]
+      .filter(([k]) => k !== OTHER_REASONS)
+      .sort(([a, x], [b, y]) => y - x || (a < b ? -1 : a > b ? 1 : 0))
+    if (list.length === 0 && other === 0) return ''
+    if (list.length === 1 && other === 0) return ` (${list[0]![0]})`
+    const rest = list.slice(NAMED_REASONS).reduce((s, [, n]) => s + n, 0) + other
+    const parts = list.slice(0, NAMED_REASONS).map(([k, n]) => `${k}: ${n}`)
+    if (rest > 0) parts.push(`${OTHER_REASONS}: ${rest}`)
+    return ` (${parts.join('; ')})`
+  }
+}
+
 /**
  * Streaming aggregation over priced rows. Holds only bounded per-key sums,
  * so memory does not grow with the number of rows.
@@ -131,6 +171,8 @@ export class Aggregator {
   private readonly byLabel: CappedMap<Bucket>
   private readonly bands: CappedMap<BandBucket>
   private readonly excluded = new Map<string, number>()
+  private readonly notPricedReasons = new ReasonCounts()
+  private readonly unresolvedReasons = new ReasonCounts()
 
   constructor(
     readonly cap = DEFAULT_AGGREGATE_KEY_CAP,
@@ -175,8 +217,10 @@ export class Aggregator {
       else if (kind === 'Estimated') this.estimated += femto
     } else if (kind === 'Unresolved') {
       c.rowsUnresolved++
+      this.unresolvedReasons.add(row.cost.label.reason)
     } else {
       c.rowsNotPriced++
+      this.notPricedReasons.add(row.cost.label.reason)
     }
 
     const model = row.modelLogged ?? NO_MODEL_KEY
@@ -235,8 +279,8 @@ export class Aggregator {
   summary(): AggregatorSummary {
     const c = this.cov
     const left: string[] = []
-    if (c.rowsNotPriced) left.push(`${pluralRows(c.rowsNotPriced)} Not priced`)
-    if (c.rowsUnresolved) left.push(`${pluralRows(c.rowsUnresolved)} Unresolved`)
+    if (c.rowsNotPriced) left.push(`${pluralRows(c.rowsNotPriced)} Not priced${this.notPricedReasons.text()}`)
+    if (c.rowsUnresolved) left.push(`${pluralRows(c.rowsUnresolved)} Unresolved${this.unresolvedReasons.text()}`)
     const leftCount = c.rowsNotPriced + c.rowsUnresolved
     const partial = leftCount > 0
     const partialReason = partial ? `${left.join(' and ')} ${leftCount === 1 ? 'is' : 'are'} left out` : null

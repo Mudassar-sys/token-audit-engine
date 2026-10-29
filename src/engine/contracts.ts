@@ -63,6 +63,10 @@ export const Flag = z.enum([
   'cost_inconsistent',
   'malformed',
   'model_missing',
+  /** A token class the operation is billed for is absent in the source. */
+  'billed_class_missing',
+  /** The token estimate leaves out an absent billed class; the row keeps its Measured charge. */
+  'estimate_incomplete',
 ])
 export type Flag = z.infer<typeof Flag>
 
@@ -119,6 +123,11 @@ export const NormalizedUsageRow = z.object({
   counted: z.boolean(),
   /** Request count represented by the row (1 for request rows). */
   requests: z.number().int().nonnegative(),
+  /**
+   * What the source call bills. 'generate' (chat, completion, Responses, Messages and other inference calls)
+   * bills input and output; 'embedding' bills input only. Absent means 'generate'.
+   */
+  operation: z.enum(['generate', 'embedding']).optional(),
 })
 export type NormalizedUsageRow = z.infer<typeof NormalizedUsageRow>
 
@@ -238,6 +247,14 @@ export const RoutingAssumptions = z.object({
 })
 export type RoutingAssumptions = z.infer<typeof RoutingAssumptions>
 
+/**
+ * How cache-write durations map when tokens move to a model of another provider family.
+ * Default: short to short (5m and 30m), long to long (1h and 12h). A user-supplied assumption.
+ */
+export const DurationMap = z.object({ '5m': CacheDuration, '1h': CacheDuration, '30m': CacheDuration, '12h': CacheDuration })
+export type DurationMap = z.infer<typeof DurationMap>
+export const DEFAULT_DURATION_MAP: DurationMap = { '5m': '30m', '1h': '12h', '30m': '5m', '12h': '1h' }
+
 export const PriceOverride = z.object({ model: z.string(), rateKey: z.string(), rateUsdPerToken: DecimalString })
 
 export const ReportSettings = z.object({ displayDecimals: z.number().int().min(2).max(15), aggregateKeyCap: z.number().int().positive() })
@@ -254,6 +271,8 @@ export const IdentityInputs = z.object({
   priceOverrides: z.array(PriceOverride),
   reportSettings: ReportSettings,
   engineVersion: z.string(),
+  /** Cache-write duration mapping used by the savings modeller, when one ran. */
+  durationMap: DurationMap.nullable().optional(),
 })
 export type IdentityInputs = z.infer<typeof IdentityInputs>
 
@@ -324,6 +343,74 @@ export const Report = z.object({
 })
 export type Report = z.infer<typeof Report>
 
+const ScenarioAmount = z.object({ exactUsd: DecimalString, displayUsd: z.string() })
+
+export const ScenarioRequest = z.object({
+  snapshot: PricingSnapshot,
+  snapshotMeta: FrozenSnapshot,
+  /** Reprice every comparable row at this model. Null skips the baseline. */
+  baselineKey: z.string().nullable(),
+  /** Routing scenario. Null skips routing. */
+  routing: RoutingAssumptions.nullable(),
+  durationMap: DurationMap,
+})
+export type ScenarioRequest = z.infer<typeof ScenarioRequest>
+
+export const ScenarioResult = z.object({
+  label: Label,
+  quality: z.literal('unverified'),
+  snapshot: FrozenSnapshot,
+  rowsRead: z.number().int(),
+  /** Rows priced at list price on both sides and compared. */
+  rowsCompared: z.number().int(),
+  rowsLeftOut: z.array(z.object({ reason: z.string(), rows: z.number().int() })),
+  /** List-price cost of the compared rows, repriced with the same snapshot and pricing code. */
+  listOriginal: ScenarioAmount,
+  baseline: z
+    .object({
+      key: z.string(),
+      label: z.literal('Modelled: the baseline never ran'),
+      value: ScenarioAmount,
+      /** baseline minus listOriginal of the rows both sides could price. */
+      difference: ScenarioAmount,
+      /** listOriginal restricted to the rows the baseline could price. */
+      comparedOriginal: ScenarioAmount,
+      rowsPriced: z.number().int(),
+      rowsNotPriced: z.number().int(),
+      notes: z.array(z.string()),
+    })
+    .nullable(),
+  routing: z
+    .object({
+      targetKey: z.string(),
+      eligibleRows: z.number().int(),
+      /** Eligible rows the target cannot price; they stay at their original cost. */
+      targetRateFallbackRows: z.number().int(),
+      scenario: ScenarioAmount,
+      /** listOriginal minus scenario. Negative when the scenario costs more. */
+      savings: ScenarioAmount,
+      notes: z.array(z.string()),
+    })
+    .nullable(),
+  /** Measured charges compared with the list price of the same rows. Never counted as savings. */
+  loggedVersusList: z
+    .object({
+      label: z.literal('logged charges versus list price'),
+      rows: z.number().int(),
+      logged: ScenarioAmount,
+      list: ScenarioAmount,
+      difference: ScenarioAmount,
+    })
+    .nullable(),
+  /** Time-bucket rows have no request sizes: priced at base rates, long context uncertain. */
+  timeBucketRows: z.number().int(),
+  longContextUncertain: z.boolean(),
+  assumptions: z.array(z.string()),
+  durationMap: DurationMap,
+  elapsedMs: z.number(),
+})
+export type ScenarioResult = z.infer<typeof ScenarioResult>
+
 export const Progress = z.object({
   bytesRead: z.number(),
   bytesTotal: z.number(),
@@ -392,7 +479,10 @@ export const WorkerRequest = z.discriminatedUnion('type', [
   z.object({ type: z.literal('rows'), offset: z.number().int(), limit: z.number().int() }),
   z.object({ type: z.literal('row'), rowIndex: z.number().int() }),
   z.object({ type: z.literal('preview'), file: z.any(), mapping: CustomCsvMapping }),
-  z.object({ type: z.literal('exportCsv') }),
+  /** target: a FileSystemFileHandle to stream into, or null for the Blob fallback. */
+  z.object({ type: z.literal('exportCsv'), target: z.any().nullable() }),
+  z.object({ type: z.literal('scenario'), request: ScenarioRequest }),
+  z.object({ type: z.literal('countRows'), auditId: z.string() }),
   z.object({ type: z.literal('clear') }),
   z.object({ type: z.literal('estimate') }),
   z.object({ type: z.literal('generateSample'), bytes: z.number().int().positive(), seed: z.number().int() }),
@@ -410,15 +500,43 @@ export const WorkerResponse = z.discriminatedUnion('type', [
     /** Time spent deleting the partial rows after the stop. */
     deleteMs: z.number(),
     partialRowsDeleted: z.boolean(),
+    /** The cancelled import's audit id, so callers can confirm its rows are gone. */
+    auditId: z.string().nullable(),
   }),
   z.object({ type: z.literal('error'), message: z.string(), code: z.enum(['quota', 'parse', 'unsupported', 'internal']) }),
   z.object({ type: z.literal('rows'), offset: z.number().int(), rows: z.array(AuditRow) }),
   z.object({ type: z.literal('row'), row: AuditRow.nullable() }),
   z.object({ type: z.literal('preview'), rows: z.array(NormalizedUsageRow), errors: z.array(z.string()) }),
-  z.object({ type: z.literal('csv'), blob: z.any(), rows: z.number().int() }),
+  z.object({
+    type: z.literal('csv'),
+    /** The Blob for the fallback path; null when the file was streamed to a file handle. */
+    blob: z.any(),
+    rows: z.number().int(),
+    bytes: z.number().int(),
+    path: z.enum(['stream', 'blob']),
+    ms: z.number(),
+  }),
+  z.object({ type: z.literal('exportProgress'), rows: z.number().int(), bytes: z.number().int() }),
+  z.object({ type: z.literal('scenarioProgress'), rowsDone: z.number().int(), rowsTotal: z.number().int() }),
+  z.object({ type: z.literal('scenario'), result: ScenarioResult }),
+  z.object({ type: z.literal('count'), rows: z.number().int() }),
   z.object({ type: z.literal('cleared') }),
   z.object({ type: z.literal('estimate'), usage: z.number().nullable(), quota: z.number().nullable() }),
   z.object({ type: z.literal('sampleProgress'), bytes: z.number() }),
-  z.object({ type: z.literal('sample'), file: z.any(), bytes: z.number(), rows: z.number().int(), columns: z.number().int(), sourceMix: z.record(z.string(), z.number()), ms: z.number() }),
+  z.object({
+    type: z.literal('sample'),
+    file: z.any(),
+    bytes: z.number(),
+    rows: z.number().int(),
+    columns: z.number().int(),
+    sourceMix: z.record(z.string(), z.number()),
+    ms: z.number(),
+    seed: z.number().int(),
+    /** SHA-256 of the exact file bytes, padding included. */
+    sha256: z.string(),
+    /** Rows the generator wrote to be Not priced (unknown models) and Unresolved (spend 0 on a priced model). */
+    expectedNotPriced: z.number().int(),
+    expectedUnresolved: z.number().int(),
+  }),
 ])
 export type WorkerResponse = z.infer<typeof WorkerResponse>

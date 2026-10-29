@@ -34,6 +34,12 @@ function cell(row: Record<string, string>, column: string | null): string | null
   return s === '' ? null : s
 }
 
+/** Why a mapped value is absent: no column chosen, or an empty cell. */
+function absentWhy(row: Record<string, string>, column: string | null): string {
+  if (column === null) return 'no column mapped'
+  return row[column] === undefined ? `column ${column} missing in the row` : `column ${column} empty`
+}
+
 function normalize(row: Record<string, string>, m: CustomCsvMapping, variant: VariantId): AdapterRow {
   const raw: Record<string, unknown> = {}
   const bad: string[] = []
@@ -88,6 +94,7 @@ function normalize(row: Record<string, string>, m: CustomCsvMapping, variant: Va
   let uncached = 0
   if (input === null) {
     notMeasured.push('uncachedInput')
+    mapping.push(`uncachedInput = not measured (${absentWhy(row, m.inputTokens)})`)
   } else if (m.inputIncludesCached) {
     uncached = input - cacheRead - writeTokens
     mapping.push(`uncachedInput = ${m.inputTokens} - ${m.cacheRead ?? '0'} - ${m.cacheWrite ?? '0'} (input includes cached tokens)`)
@@ -117,8 +124,10 @@ function normalize(row: Record<string, string>, m: CustomCsvMapping, variant: Va
     }
   }
 
-  if (output === null) notMeasured.push('output')
-  else mapping.push(`output = ${m.outputTokens}`)
+  if (output === null) {
+    notMeasured.push('output')
+    mapping.push(`output = not measured (${absentWhy(row, m.outputTokens)})`)
+  } else mapping.push(`output = ${m.outputTokens}`)
 
   if (reasoning === null) notMeasured.push('reasoning')
   else {
@@ -177,7 +186,7 @@ function scoreCsv(sample: RawRecord): { score: number; reason: string } {
 export const customCsvAdapter: Adapter = {
   source: 'H',
   id: 'custom-csv',
-  version: '1.0.0',
+  version: '1.0.1',
   variants: ['H-csv'],
   label: 'Any other CSV with a column mapping',
   score: scoreCsv,

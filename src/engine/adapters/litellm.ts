@@ -63,6 +63,8 @@ const EXCLUDED_NAMES = Object.keys(EXCLUDED_KEYS) as ExcludedName[]
 
 /** Call types whose usage LiteLLM normalizes to the OpenAI format, where prompt_tokens includes cache. */
 const NORMALIZED_CALL_TYPES = new Set(['completion', 'acompletion', 'text_completion', 'atext_completion', 'responses', 'aresponses'])
+/** Call types that create embeddings: billed for input only, so no output is expected. */
+const EMBEDDING_CALL_TYPES = new Set(['embedding', 'aembedding'])
 const PASS_THROUGH = /pass[_-]?through/i
 /** Proxy routes that return raw Anthropic usage: the Anthropic pass-through and the /v1/messages endpoint. */
 const RAW_ANTHROPIC_ROUTE = /(^|\/)anthropic\/v1\/messages|^\/?v1\/messages(\/|\?|$)/i
@@ -350,7 +352,7 @@ function normalize(record: RawRecord, variant: VariantId): AdapterRow {
     return text(v)
   }
   keep('request_id')
-  keep('call_type')
+  const callType = keep('call_type')
   keep('api_base')
   keep('status')
   keep('total_tokens')
@@ -411,6 +413,7 @@ function normalize(record: RawRecord, variant: VariantId): AdapterRow {
   let uncached = 0
   if (x.prompt === null) {
     notMeasured.push('uncachedInput')
+    mapping.push(`uncachedInput = not measured (prompt_tokens ${field(row, 'prompt_tokens') === undefined ? 'absent' : 'empty'})`)
   } else {
     const includes = inclusion.mode === 'included'
     const value = x.prompt - (includes ? cached : 0) - inModality
@@ -463,9 +466,13 @@ function normalize(record: RawRecord, variant: VariantId): AdapterRow {
     if (write > 0) flag('duration_assumed')
   }
 
+  const embedding = callType !== null && EMBEDDING_CALL_TYPES.has(callType.toLowerCase())
+  if (embedding) mapping.push(`operation = embedding (call_type ${callType}), billed for input only`)
+
   let output = 0
   if (x.completion === null) {
     notMeasured.push('output')
+    mapping.push(`output = not measured (completion_tokens ${field(row, 'completion_tokens') === undefined ? 'absent' : 'empty'})`)
   } else {
     const value = x.completion - ex('output_audio') - ex('output_image')
     mapping.push(`output = completion_tokens${minus(['output_audio', 'output_image'])} (includes reasoning tokens)`)
@@ -520,6 +527,7 @@ function normalize(record: RawRecord, variant: VariantId): AdapterRow {
     unresolvedReason,
     counted: true,
     requests: 1,
+    ...(embedding ? { operation: 'embedding' as const } : {}),
   }
 }
 
@@ -561,7 +569,7 @@ function scoreSpendLog(sample: RawRecord): { score: number; reason: string } {
 export const litellmAdapter: Adapter = {
   source: 'F',
   id: 'litellm-spend-logs',
-  version: '1.1.0',
+  version: '1.2.0',
   variants: ['F-csv', 'F-json'],
   label: 'LiteLLM spend logs',
   score: scoreSpendLog,

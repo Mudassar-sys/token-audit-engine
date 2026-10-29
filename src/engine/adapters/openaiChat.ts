@@ -297,11 +297,13 @@ const CHAT_OBJECTS: readonly unknown[] = ['chat.completion', 'chat.completion.ch
 /**
  * Why a record with prompt_tokens is not a chat completion for detection, or null when it may be one.
  * An embeddings response ({"object":"list","usage":{"prompt_tokens","total_tokens"}}) has another
- * object name and no completion_tokens; it is not a supported variant.
+ * object name and no completion_tokens; it is not a supported variant. A record that names itself a
+ * chat completion stays one when completion_tokens is absent: the row then lists output as Not
+ * measured instead of the file being taken for something else.
  */
 export function notChatCompletion(v: Record<string, unknown> & { usage: Record<string, unknown> }): string | null {
   if (v.object !== undefined && !CHAT_OBJECTS.includes(v.object)) return `object ${JSON.stringify(v.object)} is not a chat completion`
-  if (v.usage.completion_tokens === undefined) return 'usage has no completion_tokens, so it is not chat completion usage'
+  if (v.object === undefined && v.usage.completion_tokens === undefined) return 'usage has no completion_tokens, so it is not chat completion usage'
   return null
 }
 
@@ -314,7 +316,7 @@ function scoreChat(sample: RawRecord): { score: number; reason: string } {
   const hints = routingHints(v)
   const isChat = v.object !== undefined
   if (hints.length > 0) return { score: isChat ? 0.5 : 0.4, reason: `chat completion usage, but ${hints.join(', ')} point to a router` }
-  if (isChat) return { score: 0.95, reason: `object ${String(v.object)} with usage.prompt_tokens` }
+  if (isChat) return { score: 0.95, reason: `object ${String(v.object)} with chat completion usage` }
   return { score: 0.7, reason: 'usage.prompt_tokens and completion_tokens without an object field' }
 }
 

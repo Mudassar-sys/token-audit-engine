@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { Aggregator, inputBand, OVERFLOW_KEY } from '../../src/engine/aggregate'
-import { AuditSummary } from '../../src/engine/contracts'
+import { Aggregator, inputBand, LEFT_OUT_REASON_CAP, OVERFLOW_KEY, shortReason } from '../../src/engine/aggregate'
+import { AuditSummary, type NormalizedUsageRow } from '../../src/engine/contracts'
 import { usdToFemto } from '../../src/engine/money'
-import { modelBaseline } from '../../src/engine/savings'
-import { makeAuditRow, TEST_SNAPSHOT as testSnapshot } from './helpers/testSnapshot'
+import { createPricingEngine } from '../../src/engine/pricing'
+import { makeAuditRow, TEST_META, TEST_SNAPSHOT } from './helpers/testSnapshot'
 
 describe('Aggregator', () => {
   it('caps each dimension and folds new keys into (overflow)', () => {
@@ -51,7 +51,7 @@ describe('Aggregator', () => {
       rowsMalformed: 1,
     })
     expect(s.totals.partial).toBe(true)
-    expect(s.totals.partialReason).toBe('3 rows Not priced and 1 row Unresolved are left out')
+    expect(s.totals.partialReason).toBe('3 rows Not priced (model not in snapshot) and 1 row Unresolved (review needed) are left out')
     expect(s.totals.value).toEqual({ exactUsd: '0.955615', displayUsd: '$0.955615' })
     expect(s.totals.measuredCharge.exactUsd).toBe('0.95')
     expect(s.totals.estimated.exactUsd).toBe('0.005615')
@@ -100,9 +100,8 @@ describe('Aggregator', () => {
     // Priced bands now hold the whole total value.
     const pricedSum = s.bands.filter((b) => b.priced).reduce((sum, b) => sum + usdToFemto(b.valueUsd), 0n)
     expect(pricedSum).toBe(usdToFemto(s.totals.value.exactUsd))
-    const baseline = modelBaseline(s.bands, testSnapshot, 'gpt-4o')
-    expect(baseline.actual.exactUsd).toBe('0.00252')
-    expect(baseline.skipped.map((b) => b.model).sort()).toEqual([OVERFLOW_KEY, 'unlisted-model-x'].sort())
+    expect(s.bands.filter((b) => b.priced).reduce((sum, b) => sum + usdToFemto(b.valueUsd), 0n)).toBe(usdToFemto('0.00252'))
+    expect(s.bands.filter((b) => !b.priced).map((b) => b.model).sort()).toEqual([OVERFLOW_KEY, 'unlisted-model-x'].sort())
   })
 
   it('a full total has no partial marker; one left-out row reads in the singular', () => {
@@ -111,7 +110,54 @@ describe('Aggregator', () => {
     expect(full.summary().totals).toMatchObject({ partial: false, partialReason: null })
     const one = new Aggregator()
     one.add(makeAuditRow({ kind: 'Not priced' }))
-    expect(one.summary().totals.partialReason).toBe('1 row Not priced is left out')
+    expect(one.summary().totals.partialReason).toBe('1 row Not priced (model not in snapshot) is left out')
+  })
+
+  it('the partial total names the reasons rows are left out', () => {
+    const engine = createPricingEngine(TEST_SNAPSHOT, TEST_META)
+    const base: NormalizedUsageRow = {
+      rowIndex: 0,
+      timestamp: null,
+      variant: 'A-jsonl',
+      provider: 'openai',
+      modelLogged: 'gpt-4o',
+      tierStated: 'standard',
+      granularity: 'request',
+      tokens: { uncachedInput: 1000, cacheRead: 0, cacheWrite: { '5m': 0, '1h': 0, '30m': 0, '12h': 0 }, output: 0, reasoning: null },
+      notMeasured: [],
+      excluded: {},
+      reported: null,
+      raw: {},
+      mapping: [],
+      flags: [],
+      unresolvedReason: null,
+      counted: true,
+      requests: 1,
+    }
+    const agg = new Aggregator()
+    agg.add(engine.price(base))
+    agg.add(engine.price({ ...base, modelLogged: 'unlisted-model-x' }))
+    agg.add(engine.price({ ...base, modelLogged: 'unlisted-model-x' }))
+    agg.add(engine.price({ ...base, notMeasured: ['output'] }))
+    expect(agg.summary().totals.partialReason).toBe('2 rows Not priced (model "unlisted-model-x" is not in the snapshot) and 1 row Unresolved (output tokens missing) are left out')
+
+    agg.add(engine.price({ ...base, modelLogged: 'other-model' }))
+    agg.add(engine.price({ ...base, unresolvedReason: 'cache tokens exceed input tokens; no documented producer rule' }))
+    expect(agg.summary().totals.partialReason).toBe(
+      '3 rows Not priced (model "unlisted-model-x" is not in the snapshot: 2; model "other-model" is not in the snapshot: 1) and 2 rows Unresolved (cache tokens exceed input tokens: 1; output tokens missing: 1) are left out',
+    )
+  })
+
+  it('names at most three reasons and keeps a bounded number of them', () => {
+    expect(shortReason('input and output tokens missing, cost would be understated')).toBe('input and output tokens missing')
+    expect(shortReason('gateway logged spend 0 but the snapshot rate is not zero; review needed')).toBe('gateway logged spend 0 but the snapshot rate is not zero')
+    const agg = new Aggregator()
+    const reasons = LEFT_OUT_REASON_CAP + 5
+    for (let i = 0; i < reasons; i++) {
+      const r = makeAuditRow({ kind: 'Not priced', model: `m-${i}` })
+      agg.add({ ...r, cost: { ...r.cost, label: { kind: 'Not priced', reason: `reason ${String(i).padStart(3, '0')}` } } })
+    }
+    expect(agg.summary().totals.partialReason).toBe(`${reasons} rows Not priced (reason 000: 1; reason 001: 1; reason 002: 1; other reasons: ${reasons - 3}) are left out`)
   })
 
   it('groups by day and provider, sums tokens and excluded usage over counted rows', () => {

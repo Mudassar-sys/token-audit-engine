@@ -558,3 +558,84 @@ describe('reasoning, charges, labels', () => {
     expect(out.cost.label.reason).toContain('override applied')
   })
 })
+
+describe('absent billed token classes', () => {
+  const charge = (amountUsd: string) => ({ amountUsd, field: 'usage.cost', kind: 'charge' as const })
+
+  it('output absent with no charge is Unresolved, with the subtotal of the classes present beside it', () => {
+    const out = price(row({ notMeasured: ['output'], tokens: { uncachedInput: 1000, cacheRead: 400 } }))
+    expect(out.cost.valueUsd).toBeNull()
+    expect(out.cost.label).toEqual({ kind: 'Unresolved', reason: 'output tokens missing, cost would be understated' })
+    // 1,000 x 0.0000025 + 400 x 0.00000125
+    expect(out.cost.estimateUsd).toBe('0.003')
+    expect(out.cost.estimateLabel).toEqual({ kind: 'Estimated', reason: 'subtotal of the classes present; not counted in totals' })
+    expect(out.flags).toContain('billed_class_missing')
+    expect(out.flags).not.toContain('estimate_incomplete')
+    expect(out.labels.output).toEqual({ kind: 'Not measured', reason: 'absent in source' })
+  })
+
+  it('input absent names input, and both absent name both', () => {
+    expect(price(row({ notMeasured: ['uncachedInput'], tokens: { output: 10 } })).cost.label.reason).toBe('input tokens missing, cost would be understated')
+    const both = price(row({ notMeasured: ['uncachedInput', 'output'], tokens: { cacheRead: 100 } }))
+    expect(both.cost.label).toEqual({ kind: 'Unresolved', reason: 'input and output tokens missing, cost would be understated' })
+    expect(both.cost.estimateUsd).toBe('0.000125')
+  })
+
+  it('a Measured charge keeps the row, with the estimate marked incomplete', () => {
+    const out = price(row({ variant: 'E-json', notMeasured: ['output'], reported: charge('0.95'), tokens: { uncachedInput: 1000 } }))
+    expect(out.cost.valueUsd).toBe('0.95')
+    expect(out.cost.label).toEqual({ kind: 'Measured charge', reason: 'as logged in usage.cost' })
+    expect(out.flags).toEqual(expect.arrayContaining(['billed_class_missing', 'estimate_incomplete']))
+    // An incomplete estimate is not compared with the charge.
+    expect(out.flags).not.toContain('cost_inconsistent')
+    expect(out.cost.estimateUsd).toBe('0.0025')
+    expect(out.cost.estimateLabel.kind).toBe('Estimated')
+    expect(out.cost.estimateLabel.reason.startsWith('incomplete: output tokens missing; ')).toBe(true)
+    // A charge of 0 is still a valid zero.
+    expect(price(row({ variant: 'E-json', notMeasured: ['output'], reported: charge('0'), tokens: { uncachedInput: 1000 } })).cost.valueUsd).toBe('0')
+  })
+
+  it('a Measured charge on a model the snapshot cannot price keeps the charge and no estimate', () => {
+    const out = price(row({ variant: 'E-json', modelLogged: 'unlisted/unknown', notMeasured: ['output'], reported: charge('0.00014'), tokens: { uncachedInput: 1 } }))
+    expect(out.cost).toMatchObject({ valueUsd: '0.00014', estimateUsd: null })
+    expect(out.cost.estimateLabel.kind).toBe('Not priced')
+    expect(out.flags).toContain('estimate_incomplete')
+  })
+
+  it('a gateway spend does not keep the row; it still shows as the reported amount', () => {
+    const out = price(row({ variant: 'F-json', notMeasured: ['output'], reported: { amountUsd: '0.5', field: 'spend', kind: 'gateway_estimate' }, tokens: { uncachedInput: 1000 } }))
+    expect(out.cost.valueUsd).toBeNull()
+    expect(out.cost.label).toEqual({ kind: 'Unresolved', reason: 'output tokens missing, cost would be understated' })
+    expect(out.labels.reportedCharge).toEqual({ kind: 'Estimated', reason: "gateway's own calculation (spend)" })
+    expect(out.flags).not.toContain('estimate_incomplete')
+  })
+
+  it('an unreadable charge does not keep the row either', () => {
+    const out = price(row({ variant: 'E-json', notMeasured: ['output'], reported: charge('-0.5'), tokens: { uncachedInput: 1000 } }))
+    expect(out.cost.label.reason).toBe('output tokens missing, cost would be understated')
+  })
+
+  it('an embedding call never needs output', () => {
+    const out = price(row({ operation: 'embedding', notMeasured: ['output', 'reasoning'], tokens: { uncachedInput: 1000 } }))
+    expect(out.cost).toMatchObject({ valueUsd: '0.0025', label: { kind: 'Estimated' } })
+    expect(out.flags).not.toContain('billed_class_missing')
+    const noInput = price(row({ operation: 'embedding', notMeasured: ['uncachedInput', 'output'], tokens: {} }))
+    expect(noInput.cost.label.reason).toBe('input tokens missing, cost would be understated')
+  })
+
+  it('an explicit 0 is measured and stays a valid zero', () => {
+    const out = price(row({ tokens: { uncachedInput: 0, output: 0 } }))
+    expect(out.cost.valueUsd).toBe('0')
+    expect(out.flags).not.toContain('billed_class_missing')
+  })
+
+  it('other absent classes, an unresolvedReason and a malformed row keep their own outcome', () => {
+    expect(price(row({ notMeasured: ['cacheRead', 'cacheWrite', 'reasoning'], tokens: { uncachedInput: 1000 } })).cost.valueUsd).toBe('0.0025')
+    const unresolved = price(row({ notMeasured: ['output'], unresolvedReason: 'cache tokens exceed input tokens', tokens: { uncachedInput: 1 } }))
+    expect(unresolved.cost.label.reason).toBe('cache tokens exceed input tokens')
+    expect(unresolved.flags).not.toContain('billed_class_missing')
+    const malformed = price(row({ notMeasured: ['output'], flags: ['malformed'] }))
+    expect(malformed.cost.label.reason).toBe('malformed row')
+    expect(malformed.flags).not.toContain('billed_class_missing')
+  })
+})

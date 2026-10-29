@@ -1,7 +1,7 @@
 import { mkdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
-import { importFixture } from './helpers'
+import { forceBlobExport, importFixture } from './helpers'
 
 // Smoke suite for a deployed site: run with BASE_URL=<site> npx playwright test --grep @smoke
 test('@smoke headers, import a fixture, download both exports', async ({ page, request }) => {
@@ -10,6 +10,7 @@ test('@smoke headers, import a fixture, download both exports', async ({ page, r
   expect(res.headers()['content-security-policy']).toContain("connect-src 'self'")
   expect(res.headers()['x-robots-tag']).toBe('noindex')
 
+  await forceBlobExport(page)
   await importFixture(page, 'd-anthropic-messages.json')
   await expect(page.getByTestId('price-label')).toContainText('current list price, snapshot')
   await expect(page.getByTestId('totals')).toContainText('$')

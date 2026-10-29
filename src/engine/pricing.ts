@@ -155,6 +155,18 @@ function premiumReason(row: NormalizedUsageRow): string | null {
   return null
 }
 
+/**
+ * Billed token classes the source left out. Every inference call bills input; a generate call
+ * also bills output, an embedding call does not. A class is absent only when the adapter lists it
+ * in notMeasured: an explicit 0 is measured and stays a valid zero.
+ */
+export function missingBilledClasses(row: NormalizedUsageRow): ('input' | 'output')[] {
+  const out: ('input' | 'output')[] = []
+  if (row.notMeasured.includes('uncachedInput')) out.push('input')
+  if ((row.operation ?? 'generate') === 'generate' && row.notMeasured.includes('output')) out.push('output')
+  return out
+}
+
 function stripMeta(meta: FrozenSnapshot): FrozenSnapshot {
   return { file: meta.file, date: meta.date, sha256: meta.sha256, commit: meta.commit }
 }
@@ -357,7 +369,7 @@ export function createPricingEngine(
     if (tierAssumed) est.notes.unshift('tier assumed standard')
     const noteText = est.notes.length ? `; ${est.notes.join('; ')}` : ''
     const estimateUsd = est.ok ? femtoToExactUsd(est.femto) : null
-    const estimateLabel: Label = est.ok
+    let estimateLabel: Label = est.ok
       ? { kind: 'Estimated', reason: `tokens times snapshot rate${noteText}` }
       : { kind: 'Not priced', reason: est.reason }
     const applied = est.ok ? est.applied : []
@@ -385,9 +397,31 @@ export function createPricingEngine(
       }
     }
 
+    // A billed class absent in the source: the tokens times rate estimate would be understated.
+    const missing = row.unresolvedReason === null && !malformed ? missingBilledClasses(row) : []
+    const missingText = missing.join(' and ')
+
     if (row.unresolvedReason !== null || malformed) {
       label = { kind: 'Unresolved', reason: row.unresolvedReason ?? 'malformed row' }
       formula = `unresolved: ${label.reason}`
+    } else if (missing.length > 0) {
+      pushFlag(flags, 'billed_class_missing')
+      if (rep?.kind === 'charge' && repFemto !== null) {
+        // The logged charge stays the value; the estimate beside it leaves out the absent class.
+        pushFlag(flags, 'estimate_incomplete')
+        valueUsd = femtoToExactUsd(repFemto)
+        label = {
+          kind: 'Measured charge',
+          reason: repFemto === 0n ? `as logged in ${rep.field}; a charge of 0 is a valid zero` : `as logged in ${rep.field}`,
+        }
+        if (est.ok) estimateLabel = { kind: 'Estimated', reason: `incomplete: ${missingText} tokens missing; tokens times snapshot rate for the classes present${noteText}` }
+        formula = `${rep.field} = $${valueUsd}${est.ok ? `; incomplete estimate (${missingText} tokens missing) ${est.formula}` : ''}`
+      } else {
+        // No charge to keep (a gateway's own spend is not a charge): the row cannot be costed.
+        label = { kind: 'Unresolved', reason: `${missingText} tokens missing, cost would be understated` }
+        if (est.ok) estimateLabel = { kind: 'Estimated', reason: 'subtotal of the classes present; not counted in totals' }
+        formula = `unresolved: ${label.reason}${est.ok ? `; subtotal of the classes present ${est.formula}` : ''}`
+      }
     } else if (rep?.kind === 'charge') {
       if (repFemto === null) {
         label = { kind: 'Unresolved', reason: `${repError ?? 'reported charge unreadable'}; review needed` }

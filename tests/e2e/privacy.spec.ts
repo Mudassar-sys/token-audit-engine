@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { expect, test, type Request } from '@playwright/test'
-import { FIXTURES, MARKERS, autoFixtures, importFixture } from './helpers'
+import { FIXTURES, MARKERS, autoFixtures, forceBlobExport, importFixture } from './helpers'
 
 /** Requests the app is allowed to make: its own assets, the pricing snapshot and manifest, recorded benchmarks. */
 function isAllowed(url: URL, origin: string): boolean {
@@ -19,6 +19,7 @@ function isAllowed(url: URL, origin: string): boolean {
 
 test('only allowlisted requests, and no file content leaves the page', async ({ page, context, baseURL }) => {
   const origin = new URL(baseURL!).origin
+  await forceBlobExport(page)
   const seen: Request[] = []
   const blocked: string[] = []
   await context.route('**/*', async (route) => {

@@ -69,8 +69,10 @@ export function normalizeAnthropicMessage(value: unknown, variant: VariantId): A
   let unresolvedReason: string | null = null
   const cacheWrite: TokenClasses['cacheWrite'] = { ...ZERO_CACHE_WRITE }
 
-  if (input === null) notMeasured.push('uncachedInput')
-  else mapping.push('uncachedInput = usage.input_tokens (already excludes cache reads and cache writes)')
+  if (input === null) {
+    notMeasured.push('uncachedInput')
+    mapping.push('uncachedInput = not measured (usage.input_tokens absent)')
+  } else mapping.push('uncachedInput = usage.input_tokens (already excludes cache reads and cache writes)')
 
   if (cacheRead === null) notMeasured.push('cacheRead')
   else mapping.push('cacheRead = usage.cache_read_input_tokens')
@@ -95,8 +97,10 @@ export function normalizeAnthropicMessage(value: unknown, variant: VariantId): A
     notMeasured.push('cacheWrite')
   }
 
-  if (output === null) notMeasured.push('output')
-  else mapping.push('output = usage.output_tokens (includes thinking tokens)')
+  if (output === null) {
+    notMeasured.push('output')
+    mapping.push('output = not measured (usage.output_tokens absent)')
+  } else mapping.push('output = usage.output_tokens (includes thinking tokens)')
 
   if (reasoning === null) notMeasured.push('reasoning')
   else {
@@ -176,7 +180,7 @@ function scoreMessage(sample: RawRecord): { score: number; reason: string } {
 export const anthropicAdapter: Adapter = {
   source: 'D',
   id: 'anthropic-messages',
-  version: '1.0.0',
+  version: '1.0.1',
   variants: ['D-json', 'D-jsonl'],
   label: 'Anthropic Messages API responses',
   score: scoreMessage,

@@ -34,6 +34,8 @@ const EXPECTED: Record<string, VariantId> = {
   'zero-valid-reported-charge.jsonl': 'E-jsonl',
   'zero-not-priced.jsonl': 'A-jsonl',
   'zero-unresolved.json': 'F-json',
+  'edge-missing-output.jsonl': 'A-jsonl',
+  'edge-missing-output-charge.jsonl': 'E-jsonl',
 }
 
 /** The first 64 KiB, decoded the way the worker reads a sample. */

@@ -221,7 +221,9 @@
           "aggregate_mismatch",
           "cost_inconsistent",
           "malformed",
-          "model_missing"
+          "model_missing",
+          "billed_class_missing",
+          "estimate_incomplete"
         ]
       }
     },
@@ -238,6 +240,13 @@
       "type": "integer",
       "minimum": 0,
       "maximum": 9007199254740991
+    },
+    "operation": {
+      "type": "string",
+      "enum": [
+        "generate",
+        "embedding"
+      ]
     }
   },
   "required": [

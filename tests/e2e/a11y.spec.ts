@@ -1,7 +1,7 @@
 import { join } from 'node:path'
 import AxeBuilder from '@axe-core/playwright'
 import { expect, test, type Page } from '@playwright/test'
-import { FIXTURES, importFixture } from './helpers'
+import { FIXTURES, forceBlobExport, importFixture } from './helpers'
 
 async function expectNoSeriousViolations(page: Page, where: string) {
   const results = await new AxeBuilder({ page }).analyze()
@@ -25,6 +25,7 @@ test('axe finds no serious or critical violations in any area', async ({ page })
 })
 
 test('keyboard only: import a file, open a row, export', async ({ page }) => {
+  await forceBlobExport(page)
   await page.goto('/#/import')
   // Reach the file control with Tab and open the chooser with the keyboard.
   const input = page.getByTestId('file-input')

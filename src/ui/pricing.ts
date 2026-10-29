@@ -79,3 +79,31 @@ export function loadPricing(): Promise<LoadedPricing> {
   }
   return cached
 }
+
+const frozenCache = new Map<string, Promise<PricingSnapshot>>()
+
+/**
+ * The snapshot an audit was priced with. The loaded snapshot is used when its SHA-256 is the
+ * audit's; otherwise the audit's own file is fetched and its bytes checked against the audit's SHA-256.
+ */
+export function loadFrozenSnapshot(
+  frozen: Pick<FrozenSnapshot, 'file' | 'sha256'>,
+  loaded: Pick<LoadedPricing, 'snapshot' | 'meta'> | null,
+  fetchImpl: typeof fetch = fetch,
+): Promise<PricingSnapshot> {
+  if (loaded && loaded.meta.sha256 === frozen.sha256) return Promise.resolve(loaded.snapshot)
+  let p = frozenCache.get(frozen.sha256)
+  if (!p) {
+    p = (async () => {
+      const bytes = await fetchBytes(snapshotPath(frozen.file), fetchImpl)
+      const actual = sha256HexOf(bytes)
+      if (actual !== frozen.sha256) {
+        throw new PricingIntegrityError(`Pricing snapshot ${frozen.file} does not match the audit. Expected ${frozen.sha256}, got ${actual}.`)
+      }
+      return PricingSnapshot.parse(JSON.parse(new TextDecoder().decode(bytes)))
+    })()
+    frozenCache.set(frozen.sha256, p)
+    p.catch(() => frozenCache.delete(frozen.sha256))
+  }
+  return p
+}

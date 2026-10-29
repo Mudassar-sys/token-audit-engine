@@ -5,11 +5,14 @@ import { runImport, type RowSink } from '../engine/pipeline'
 import { detectFromSample } from '../engine/detect'
 import { adapterForVariant } from '../engine/adapters'
 import { CSV_HEADER, auditRowToCsvLine } from '../engine/export'
+import { createIncrementalSha256 } from '../engine/identity'
 import { generateSampleChunks } from '../engine/sample'
+import { createScenario } from '../engine/savings'
 import { streamRecords } from '../engine/stream'
 import {
   StoreQuotaError,
   clearAll,
+  countRows,
   deleteAudit,
   getRow,
   getRows,
@@ -19,6 +22,7 @@ import {
   putAudit,
   putRows,
 } from './store'
+import { blobSink, streamSink, utf8Length, type ExportSink, type ExportTarget } from './csvExport'
 
 /**
  * Engine worker. Every import, read and export runs here, off the main thread.
@@ -39,13 +43,18 @@ const scope = self as unknown as WorkerScope
 
 const SAMPLE_BYTES = 64 * 1024
 const CSV_EXPORT_BATCH = 5000
+/** Rows read from IndexedDB per scenario step. */
+export const SCENARIO_BATCH = 2000
 const STORAGE_FACTOR = 3
 const PREVIEW_ROWS = 20
 /** The preview stops after this many records even when fewer than 20 rows mapped. */
 const PREVIEW_MAX_RECORDS = 1000
 
-export const EXPORT_STOPPED_BY_IMPORT = 'The CSV export stopped because a new import started. No file was saved.'
-export const EXPORT_STOPPED_BY_CLEAR = 'The CSV export stopped because local data was cleared. No file was saved.'
+export const EXPORT_STOPPED_BY_IMPORT = 'The CSV export stopped because a new import started. No complete file was saved. A file you chose may be empty or partial, so export again.'
+export const EXPORT_STOPPED_BY_CLEAR = 'The CSV export stopped because local data was cleared. No complete file was saved. A file you chose may be empty or partial, so export again.'
+export const SCENARIO_STOPPED_BY_IMPORT = 'The savings model stopped because a new import started.'
+export const SCENARIO_STOPPED_BY_CLEAR = 'The savings model stopped because local data was cleared.'
+export const SCENARIO_ALREADY_RUNNING = 'A savings model is already running. Wait for it to finish.'
 
 interface RunningImport {
   id: number
@@ -62,8 +71,8 @@ interface CurrentAudit {
   totalRows: number
 }
 
-/** A CSV export in progress. stopReason is set when an import or a clear starts during it. */
-interface ExportJob {
+/** A CSV export or a scenario in progress. stopReason is set when an import or a clear starts during it. */
+interface ReadJob {
   auditId: string
   stopReason: string | null
 }
@@ -71,7 +80,9 @@ interface ExportJob {
 let running: RunningImport | null = null
 let importFinished: Promise<void> | null = null
 let current: CurrentAudit | null = null
-const exportJobs = new Set<ExportJob>()
+const exportJobs = new Set<ReadJob>()
+/** One scenario at a time. */
+let scenarioJob: ReadJob | null = null
 
 function post(id: number, response: WorkerResponse): void {
   const env: ResponseEnvelope = { id, response }
@@ -181,13 +192,19 @@ function stopExports(reason: string): void {
   for (const job of exportJobs) job.stopReason ??= reason
 }
 
+/** Stop the running scenario, so none can finish on rows that are being replaced. */
+function stopScenario(reason: string): void {
+  if (scenarioJob) scenarioJob.stopReason ??= reason
+}
+
 async function handleImport(id: number, req: Extract<WorkerRequest, { type: 'import' }>): Promise<void> {
   if (running) {
     post(id, errorResponse('internal', 'An import is already running. Cancel it first.'))
     return
   }
-  // This import deletes the open audit, so an export of it can no longer finish.
+  // This import deletes the open audit, so an export or a scenario of it can no longer finish.
   stopExports(EXPORT_STOPPED_BY_IMPORT)
+  stopScenario(SCENARIO_STOPPED_BY_IMPORT)
   const file = req.file as Blob
   const auditId = newAuditId()
   const controller = new AbortController()
@@ -247,7 +264,7 @@ async function handleImport(id: number, req: Extract<WorkerRequest, { type: 'imp
       const deleteStart = performance.now()
       partialRowsDeleted = await deleteQuietly(auditId)
       const deleteMs = performance.now() - deleteStart
-      const res: WorkerResponse = { type: 'cancelled', cancelMs, deleteMs, partialRowsDeleted }
+      const res: WorkerResponse = { type: 'cancelled', cancelMs, deleteMs, partialRowsDeleted, auditId }
       post(id, res)
       answerCancels(run, res)
     } else if (quotaHit) {
@@ -256,11 +273,11 @@ async function handleImport(id: number, req: Extract<WorkerRequest, { type: 'imp
       const deleteMs = performance.now() - deleteStart
       const note = partialRowsDeleted ? ' Partial rows were deleted.' : ' Partial rows could not be deleted. Use Clear local data.'
       post(id, errorResponse('quota', new StoreQuotaError().message + note))
-      if (run.cancel) answerCancels(run, { type: 'cancelled', cancelMs: performance.now() - run.cancel.startedAt, deleteMs, partialRowsDeleted })
+      if (run.cancel) answerCancels(run, { type: 'cancelled', cancelMs: performance.now() - run.cancel.startedAt, deleteMs, partialRowsDeleted, auditId })
     } else if (isAbortError(err)) {
       const deleteStart = performance.now()
       partialRowsDeleted = await deleteQuietly(auditId)
-      post(id, { type: 'cancelled', cancelMs: 0, deleteMs: performance.now() - deleteStart, partialRowsDeleted })
+      post(id, { type: 'cancelled', cancelMs: 0, deleteMs: performance.now() - deleteStart, partialRowsDeleted, auditId })
     } else {
       partialRowsDeleted = await deleteQuietly(auditId)
       post(id, errorResponse(codeForError(err), messageOf(err)))
@@ -268,7 +285,7 @@ async function handleImport(id: number, req: Extract<WorkerRequest, { type: 'imp
   } finally {
     // A cancel that came in after the outcome was decided still gets a reply.
     if (run.cancel && run.cancel.ids.length > 0) {
-      answerCancels(run, { type: 'cancelled', cancelMs: performance.now() - run.cancel.startedAt, deleteMs: 0, partialRowsDeleted })
+      answerCancels(run, { type: 'cancelled', cancelMs: performance.now() - run.cancel.startedAt, deleteMs: 0, partialRowsDeleted, auditId })
     }
     if (running === run) running = null
   }
@@ -277,7 +294,7 @@ async function handleImport(id: number, req: Extract<WorkerRequest, { type: 'imp
 function handleCancel(id: number): void {
   const run = running
   if (!run) {
-    post(id, { type: 'cancelled', cancelMs: 0, deleteMs: 0, partialRowsDeleted: false })
+    post(id, { type: 'cancelled', cancelMs: 0, deleteMs: 0, partialRowsDeleted: false, auditId: null })
     return
   }
   if (run.cancel) {
@@ -301,33 +318,97 @@ async function handleRow(id: number, rowIndex: number): Promise<void> {
 
 class ExportStopped extends Error {}
 
-async function handleExportCsv(id: number): Promise<void> {
+async function handleExportCsv(id: number, target: ExportTarget | null): Promise<void> {
   // The audit is fixed when the export starts. An import or clear during the export stops it.
   const audit = current
   if (!audit) {
     post(id, errorResponse('internal', 'There is no audit to export yet.'))
     return
   }
-  const job: ExportJob = { auditId: audit.auditId, stopReason: null }
+  const started = performance.now()
+  const job: ReadJob = { auditId: audit.auditId, stopReason: null }
   exportJobs.add(job)
+  let sink: ExportSink | null = null
   try {
-    const parts: BlobPart[] = [CSV_HEADER]
-    const total = await iterateRows(audit.auditId, CSV_EXPORT_BATCH, (rows) => {
+    sink = target ? await streamSink(target) : blobSink()
+    const out = sink
+    let bytes = 0
+    let rows = 0
+    await out.write(CSV_HEADER)
+    bytes += utf8Length(CSV_HEADER)
+    const total = await iterateRows(audit.auditId, CSV_EXPORT_BATCH, async (batch) => {
       if (job.stopReason) throw new ExportStopped(job.stopReason)
-      // One part per batch of 5,000 rows: never one giant string.
-      parts.push(rows.map(auditRowToCsvLine).join(''))
+      if (target) {
+        // Stream path: one write per batch.
+        const text = batch.map(auditRowToCsvLine).join('')
+        await out.write(text)
+        bytes += utf8Length(text)
+      } else {
+        // Blob path: line by line into the buffer, so every part but the last is just over 8 MiB.
+        for (const row of batch) {
+          const line = auditRowToCsvLine(row)
+          await out.write(line)
+          bytes += utf8Length(line)
+        }
+      }
+      rows += batch.length
+      post(id, { type: 'exportProgress', rows, bytes })
     })
     if (job.stopReason) throw new ExportStopped(job.stopReason)
     if (total !== audit.totalRows) {
-      throw new ExportStopped(`The CSV export read ${total} of ${audit.totalRows} rows, so no file was saved. Export again.`)
+      throw new ExportStopped(`The CSV export read ${total} of ${audit.totalRows} rows, so no complete file was saved. A file you chose may be empty or partial, so export again.`)
     }
-    const blob = new Blob(parts, { type: 'text/csv;charset=utf-8' })
-    post(id, { type: 'csv', blob, rows: total })
+    const blob = await out.finish()
+    sink = null
+    post(id, { type: 'csv', blob, rows: total, bytes, path: target ? 'stream' : 'blob', ms: performance.now() - started })
   } catch (err) {
-    if (!(err instanceof ExportStopped)) throw err
-    post(id, errorResponse('internal', err.message))
+    await sink?.abort()
+    if (err instanceof ExportStopped) post(id, errorResponse('internal', err.message))
+    else post(id, isQuotaError(err) ? errorResponse('quota', `The CSV export failed: ${messageOf(err)}`) : errorResponse(codeForError(err), `The CSV export failed: ${messageOf(err)}`))
   } finally {
     exportJobs.delete(job)
+  }
+}
+
+class ScenarioStopped extends Error {}
+
+const nextTurn = () => new Promise<void>((resolve) => setTimeout(resolve, 0))
+
+/** Reprice every stored row of the open audit under the scenario, 2,000 rows at a time. */
+async function handleScenario(id: number, req: Extract<WorkerRequest, { type: 'scenario' }>): Promise<void> {
+  const audit = current
+  if (!audit) {
+    post(id, errorResponse('internal', 'There is no audit to model yet.'))
+    return
+  }
+  if (scenarioJob) {
+    post(id, errorResponse('internal', SCENARIO_ALREADY_RUNNING))
+    return
+  }
+  const job: ReadJob = { auditId: audit.auditId, stopReason: null }
+  scenarioJob = job
+  const started = performance.now()
+  try {
+    const run = createScenario(req.request)
+    let rowsDone = 0
+    const total = await iterateRows(audit.auditId, SCENARIO_BATCH, async (batch) => {
+      if (job.stopReason) throw new ScenarioStopped(job.stopReason)
+      run.add(batch)
+      rowsDone += batch.length
+      post(id, { type: 'scenarioProgress', rowsDone, rowsTotal: audit.totalRows })
+      // Let import, clear and other messages in between batches.
+      await nextTurn()
+    })
+    if (job.stopReason) throw new ScenarioStopped(job.stopReason)
+    if (total !== audit.totalRows) {
+      throw new ScenarioStopped(`The savings model read ${total} of ${audit.totalRows} rows. Run it again.`)
+    }
+    post(id, { type: 'scenario', result: run.result(performance.now() - started) })
+  } catch (err) {
+    if (!(err instanceof ScenarioStopped)) throw err
+    post(id, errorResponse('internal', err.message))
+  } finally {
+    if (scenarioJob === job) scenarioJob = null
   }
 }
 
@@ -363,6 +444,8 @@ async function handlePreview(id: number, req: Extract<WorkerRequest, { type: 'pr
 async function handleGenerateSample(id: number, bytes: number, seed: number): Promise<void> {
   const started = performance.now()
   const it = generateSampleChunks(bytes, seed)
+  const hash = createIncrementalSha256()
+  const encoder = new TextEncoder()
   const blobs: Blob[] = []
   let pending: string[] = []
   let produced = 0
@@ -370,6 +453,8 @@ async function handleGenerateSample(id: number, bytes: number, seed: number): Pr
   let step = await it.next()
   while (!step.done) {
     const chunk = step.value
+    // Hash the exact bytes that go into the file.
+    hash.update(encoder.encode(chunk))
     pending.push(chunk)
     produced += chunk.length
     // Move text into Blob storage every few chunks so strings can be collected.
@@ -387,9 +472,13 @@ async function handleGenerateSample(id: number, bytes: number, seed: number): Pr
   if (pending.length > 0) blobs.push(new Blob(pending, { type: 'text/csv' }))
   const stats = step.value
   // The generator stops on a full row just under the target. Blank trailing lines (skipped by
-  // the CSV reader) bring the file to exactly the requested size.
+  // the CSV reader) bring the file to exactly the requested size. They are hashed too.
   const short = bytes - blobs.reduce((n, b) => n + b.size, 0)
-  if (short > 0 && short < 1024 * 1024) blobs.push(new Blob(['\n'.repeat(short)], { type: 'text/csv' }))
+  if (short > 0 && short < 1024 * 1024) {
+    const padding = '\n'.repeat(short)
+    hash.update(encoder.encode(padding))
+    blobs.push(new Blob([padding], { type: 'text/csv' }))
+  }
   const file = new File(blobs, 'sample-litellm-spend-200mb.csv', { type: 'text/csv' })
   post(id, { type: 'sampleProgress', bytes: file.size })
   post(id, {
@@ -400,6 +489,10 @@ async function handleGenerateSample(id: number, bytes: number, seed: number): Pr
     columns: stats.columns,
     sourceMix: stats.sourceMix,
     ms: performance.now() - started,
+    seed: stats.seed,
+    sha256: hash.digestHex(),
+    expectedNotPriced: stats.expectedNotPriced,
+    expectedUnresolved: stats.expectedUnresolved,
   })
 }
 
@@ -426,9 +519,15 @@ async function handle(env: RequestEnvelope): Promise<void> {
     case 'preview':
       return handlePreview(id, req)
     case 'exportCsv':
-      return handleExportCsv(id)
+      return handleExportCsv(id, (req.target ?? null) as ExportTarget | null)
+    case 'scenario':
+      return handleScenario(id, req)
+    case 'countRows':
+      post(id, { type: 'count', rows: await countRows(req.auditId) })
+      return
     case 'clear': {
       stopExports(EXPORT_STOPPED_BY_CLEAR)
+      stopScenario(SCENARIO_STOPPED_BY_CLEAR)
       const run = running
       if (run) {
         run.sink.stop()

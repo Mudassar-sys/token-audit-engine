@@ -1,0 +1,60 @@
+[
+  {
+    "tokens": {
+      "uncachedInput": 1000,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 0,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "cacheWrite",
+      "output",
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": null,
+    "modelLogged": "openai/gpt-4o",
+    "reported": {
+      "amountUsd": "0.0031",
+      "field": "usage.cost",
+      "kind": "charge"
+    }
+  },
+  {
+    "tokens": {
+      "uncachedInput": 1000,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 0,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "cacheWrite",
+      "output",
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": null,
+    "modelLogged": "openai/gpt-4o",
+    "reported": null
+  }
+]

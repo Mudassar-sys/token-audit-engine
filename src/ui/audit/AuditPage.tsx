@@ -14,6 +14,15 @@ import { EMPTY_SAVINGS, SavingsPanel, type SavingsState } from './SavingsPanel'
 
 const REPORT_SETTINGS = { displayDecimals: 6, aggregateKeyCap: 5000 }
 
+type SaveFilePicker = (options: {
+  suggestedName: string
+  types: { description: string; accept: Record<string, string[]> }[]
+}) => Promise<FileSystemFileHandle>
+
+function isAbortError(err: unknown): boolean {
+  return (err as { name?: unknown } | null)?.name === 'AbortError'
+}
+
 interface Props {
   client: EngineClient
   audit: OpenAudit | null
@@ -57,11 +66,13 @@ function OpenAuditView({ client, audit }: { client: EngineClient; audit: OpenAud
       adapters: adapterList(summary.variant),
       schemaVersion: SCHEMA_VERSION,
       snapshotSha256: summary.snapshot.sha256,
-      baselineModel: savings.baseline ? savings.baselineModel : null,
-      routing: savings.routingResult ? savings.routing : null,
+      baselineModel: savings.result?.baseline && savings.inputs ? savings.inputs.baselineKey : null,
+      routing: savings.result?.routing && savings.inputs ? savings.inputs.routing : null,
       priceOverrides: [],
       reportSettings: REPORT_SETTINGS,
       engineVersion: ENGINE_VERSION,
+      // Only when a scenario ran, so audits without one keep the same identity.
+      ...(savings.result && savings.inputs ? { durationMap: savings.inputs.durationMap } : {}),
     }),
     [summary, savings],
   )
@@ -69,11 +80,26 @@ function OpenAuditView({ client, audit }: { client: EngineClient; audit: OpenAud
   const stem = fileStem(summary.fileName)
 
   const exportCsv = async () => {
+    const fileName = `${stem}-audit-rows.csv`
+    let target: FileSystemFileHandle | null = null
+    if ('showSaveFilePicker' in window) {
+      // Called first thing in the click handler: the save dialog needs the click's user activation.
+      const pick = (window as unknown as { showSaveFilePicker: SaveFilePicker }).showSaveFilePicker
+      try {
+        target = await pick({ suggestedName: fileName, types: [{ description: 'CSV file', accept: { 'text/csv': ['.csv'] } }] })
+      } catch (err) {
+        // The visitor closed the dialog: nothing to do.
+        if (isAbortError(err)) return
+        // The dialog is not available here: build the file in memory and download it instead.
+        target = null
+      }
+    }
     setExportStatus('Building the CSV export.')
     try {
-      const { blob, rows } = await client.exportCsv()
-      saveBlob(blob, `${stem}-audit-rows.csv`)
-      setExportStatus(`CSV export saved with ${formatInt(rows)} rows.`)
+      const res = await client.exportCsv(target, (p) => setExportStatus(`Building the CSV export: ${formatInt(p.rows)} rows, ${formatBytes(p.bytes)}.`))
+      if (res.path === 'blob' && res.blob) saveBlob(res.blob, fileName)
+      const where = res.path === 'stream' ? ' into the chosen file' : ''
+      setExportStatus(`CSV export saved with ${formatInt(res.rows)} rows${where}, ${formatBytes(res.bytes)}.`)
     } catch (err) {
       setExportStatus(`CSV export failed: ${err instanceof Error ? err.message : String(err)}`)
     }
@@ -81,8 +107,8 @@ function OpenAuditView({ client, audit }: { client: EngineClient; audit: OpenAud
 
   const exportJson = () => {
     try {
-      const savingsOut = savings.baseline || savings.routingResult ? { baseline: savings.baseline, routing: savings.routingResult } : null
-      const report = buildReport(summary, identityInputs, new Date().toISOString(), savingsOut)
+      // The exact scenario result shown in the savings panel, figures unchanged.
+      const report = buildReport(summary, identityInputs, new Date().toISOString(), savings.result ?? null)
       saveJson(report, `${stem}-audit-report.json`)
       setExportStatus('JSON report saved.')
     } catch (err) {
@@ -129,7 +155,7 @@ function OpenAuditView({ client, audit }: { client: EngineClient; audit: OpenAud
         <RowTable client={client} rowCount={summary.coverage.totalRows} onOpen={setOpenRow} />
       </section>
 
-      <SavingsPanel summary={summary} snapshot={audit.pricing.snapshot} value={savings} onChange={setSavings} />
+      <SavingsPanel client={client} summary={summary} pricing={audit.pricing} value={savings} onChange={setSavings} />
 
       <section className="panel" aria-labelledby={`${ids}-id`}>
         <h2 id={`${ids}-id`}>Calculation identity</h2>
@@ -157,7 +183,7 @@ function OpenAuditView({ client, audit }: { client: EngineClient; audit: OpenAud
             Export JSON report
           </button>
         </div>
-        <p role="status" className="status-line">
+        <p role="status" className="status-line" data-testid="export-status">
           {exportStatus}
         </p>
       </section>

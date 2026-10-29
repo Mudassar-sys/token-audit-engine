@@ -1,72 +1,74 @@
-import type { AuditSummary, Label, PricingModelEntry, PricingSnapshot, RoutingAssumptions } from './contracts'
-import { OVERFLOW_KEY } from './aggregate'
-import { decimalToScaled, FEMTO_DIGITS, femtoToExactUsd, formatUsd, rateToFemto, scaledToDecimal, usdToFemto } from './money'
-import { providerFamily } from './pricing'
+import type {
+  AuditRow,
+  CacheDuration,
+  DurationMap,
+  Flag,
+  Label,
+  NormalizedUsageRow,
+  PricingModelEntry,
+  RoutingAssumptions,
+  ScenarioRequest,
+  ScenarioResult,
+  Tier,
+} from './contracts'
+import { inputBand, inputPerRequest } from './aggregate'
+import { decimalToScaled, FEMTO_DIGITS, formatUsd, femtoToExactUsd, scaledToDecimal, usdToFemto } from './money'
+import { contextThresholds, createPricingEngine, providerFamily, THRESHOLD_ONLY_INPUT_KEYS, TIER_SUFFIX } from './pricing'
 
 /**
- * Savings modeller. Everything here is Estimated: it reprices logged token sums
- * at snapshot list prices under user-supplied assumptions. Quality is never verified.
+ * Savings modeller. Every compared row is repriced through the same row pricer and snapshot as the
+ * audit: once as logged (list price), and once moved to the baseline or target model under
+ * user-supplied assumptions. Everything here is Estimated and quality is never verified.
  */
-
-export type Band = AuditSummary['bands'][number]
 
 const RATIO_DIGITS = 6
 const S = 10n ** BigInt(RATIO_DIGITS)
+const S2 = S * S
+const S3 = S2 * S
 /** Display decimals for savings amounts. Only the display value is rounded. */
 const DISPLAY_DECIMALS = 6
 /**
- * Routing results are products of a femto amount and four ratios of 6 decimal places each,
- * so they are exact at 10^-(15 + 24) USD. They are kept at that scale and never rounded.
+ * A routing scenario row is a femto amount times three ratios of 6 decimal places each
+ * (eligible share, retry and fallback rate, calibration pass rate), so routing amounts are exact
+ * at 10^-(15 + 18) USD. They are kept at that scale and never rounded.
  */
-export const ROUTING_SCALE_DIGITS = FEMTO_DIGITS + 4 * RATIO_DIGITS
+export const ROUTING_SCALE_DIGITS = FEMTO_DIGITS + 3 * RATIO_DIGITS
 
 export const BASELINE_LABEL = 'Modelled: the baseline never ran'
 export const ASSUMPTION_LABEL = 'user-supplied assumption'
+export const LOGGED_VERSUS_LIST_LABEL = 'logged charges versus list price'
+export const TIME_BUCKET_ASSUMPTION = 'time-bucket rows have no request sizes: priced at base rates, long-context result uncertain'
 
-export interface AmountPair {
-  exactUsd: string
-  displayUsd: string
-}
+/** Reasons a row is left out of every comparison. */
+export const LEFT_OUT = {
+  notCounted: 'not counted (aggregate span)',
+  malformed: 'malformed',
+  unresolved: 'Unresolved',
+  noListPrice: 'no list price',
+  estimateIncomplete: 'token estimate incomplete',
+} as const
+const LEFT_OUT_ORDER = [LEFT_OUT.notCounted, LEFT_OUT.malformed, LEFT_OUT.unresolved, LEFT_OUT.noListPrice, LEFT_OUT.estimateIncomplete]
 
-export interface SkippedBand {
-  model: string
-  band: string
-  reason: string
-}
+/** Flags that price() adds. They are dropped before a row is priced again. */
+const PRICING_FLAGS: ReadonlySet<Flag> = new Set<Flag>([
+  'tier_assumed',
+  'long_context_applied',
+  'long_context_not_applied_bucket',
+  'model_missing',
+  'cost_inconsistent',
+  'estimate_incomplete',
+  'billed_class_missing',
+])
+/** Fields an AuditRow adds to the normalized row. */
+const AUDIT_ONLY_KEYS = ['resolvedKey', 'match', 'tierApplied', 'cost', 'labels', 'snapshot'] as const satisfies readonly Exclude<keyof AuditRow, keyof NormalizedUsageRow>[]
+/** price() appends this mapping line for long context sizes; it is dropped before a reprice too. */
+const CONTEXT_LINE_PREFIX = 'contextSize = '
 
-export interface BaselineResult {
-  kind: 'baseline'
-  baselineKey: string
-  label: Label
-  baselineLabel: typeof BASELINE_LABEL
-  quality: 'unverified'
-  /** Logged value of the priced bands that were repriced. */
-  actual: AmountPair
-  /** The same tokens at the baseline model's list price. */
-  baseline: AmountPair
-  /** baseline minus actual. Positive means the logged usage cost less than the baseline would have. */
-  difference: AmountPair
-  assumptions: string[]
-  bandsUsed: number
-  skipped: SkippedBand[]
-}
+const DURATIONS: readonly CacheDuration[] = ['5m', '1h', '30m', '12h']
+/** Distinct Not priced reasons kept per side; the rest count as other reasons. */
+const REASON_CAP = 20
 
-export interface RoutingResult {
-  kind: 'routing'
-  targetKey: string
-  label: Label
-  quality: 'unverified'
-  /** Logged value of all priced bands. */
-  original: AmountPair
-  /** Modelled value with the eligible share routed to the target. */
-  scenario: AmountPair
-  /** original minus scenario. Negative when the scenario costs more. */
-  savings: AmountPair
-  assumptions: string[]
-  bandsUsed: number
-  bandsEligible: number
-  skipped: SkippedBand[]
-}
+export type AmountPair = ScenarioResult['listOriginal']
 
 export class SavingsInputError extends Error {
   constructor(message: string) {
@@ -75,8 +77,17 @@ export class SavingsInputError extends Error {
   }
 }
 
+/** Divide and round half away from zero. */
+function divRound(num: bigint, den: bigint): bigint {
+  const neg = num < 0n
+  const a = neg ? -num : num
+  let q = a / den
+  if ((a % den) * 2n >= den) q += 1n
+  return neg ? -q : q
+}
+
 function pair(femto: bigint): AmountPair {
-  return { exactUsd: femtoToExactUsd(femto), displayUsd: formatUsd(femto) }
+  return { exactUsd: femtoToExactUsd(femto), displayUsd: formatUsd(femto, DISPLAY_DECIMALS) }
 }
 
 /**
@@ -123,20 +134,6 @@ export function canonicalRoutingAssumptions(a: RoutingAssumptions): RoutingAssum
   }
 }
 
-function int(n: number, what: string): bigint {
-  if (!Number.isSafeInteger(n) || n < 0) throw new SavingsInputError(`${what} must be a non-negative whole number`)
-  return BigInt(n)
-}
-
-/** Divide and round half away from zero. */
-function divRound(num: bigint, den: bigint): bigint {
-  const neg = num < 0n
-  const a = neg ? -num : num
-  let q = a / den
-  if ((a % den) * 2n >= den) q += 1n
-  return neg ? -q : q
-}
-
 function ratio(text: string, what: string, max: bigint | null): bigint {
   let v: bigint
   try {
@@ -149,177 +146,394 @@ function ratio(text: string, what: string, max: bigint | null): bigint {
   return v
 }
 
-interface BaseRates {
-  input: bigint
-  output: bigint
-  cacheRead: bigint
-  cacheWrite: bigint
-  notes: string[]
-}
-
-/** Standard-tier base rates of a model, with the stand-ins used for missing cache rates. */
-function baseRates(key: string, entry: PricingModelEntry | undefined, role: string): BaseRates {
-  if (!entry) throw new SavingsInputError(`${role} model "${key}" is not in the snapshot`)
-  const r = entry.rates
-  if (r.input_cost_per_token === undefined || r.output_cost_per_token === undefined) {
-    throw new SavingsInputError(`${role} model "${key}" has no input or output token rate in the snapshot`)
-  }
-  const input = rateToFemto(r.input_cost_per_token)
-  const output = rateToFemto(r.output_cost_per_token)
-  const notes: string[] = [`${role} priced at standard tier base rates, no long context premium`]
-  let cacheRead = input
-  if (r.cache_read_input_token_cost !== undefined) cacheRead = rateToFemto(r.cache_read_input_token_cost)
-  else notes.push(`${role} has no cache read rate, so cache reads are priced as uncached input`)
-  let cacheWrite = input
-  if (r.cache_creation_input_token_cost !== undefined) {
-    cacheWrite = rateToFemto(r.cache_creation_input_token_cost)
-    const fam = providerFamily(key, entry)
-    const d = fam === 'anthropic' ? '5 minute' : fam === 'openai' ? '30 minute' : 'base'
-    notes.push(`${role} cache writes priced at its ${d} write rate (logged write durations are not split per band)`)
-  } else {
-    notes.push(`${role} has no cache write rate, so cache writes are priced as uncached input`)
-  }
-  return { input, output, cacheRead, cacheWrite, notes }
-}
-
-function bandCost(b: Band, r: BaseRates): bigint {
-  return (
-    BigInt(b.uncachedInput) * r.input +
-    BigInt(b.cacheRead) * r.cacheRead +
-    BigInt(b.cacheWrite) * r.cacheWrite +
-    BigInt(b.output) * r.output
-  )
-}
-
-/** Reprice every priced band at the baseline model's list price. */
-export function modelBaseline(bands: readonly Band[], snapshot: PricingSnapshot, baselineKey: string): BaselineResult {
-  const rates = baseRates(baselineKey, snapshot.models[baselineKey], 'Baseline')
-  let actual = 0n
-  let baseline = 0n
-  let used = 0
-  const skipped: SkippedBand[] = []
-  for (const b of bands) {
-    if (!b.priced) {
-      skipped.push({ model: b.model, band: b.band, reason: 'band has rows that are Not priced or Unresolved, so there is no logged value to compare' })
-      continue
-    }
-    actual += usdToFemto(b.valueUsd)
-    baseline += bandCost(b, rates)
-    used++
-  }
+/**
+ * The normalized row behind an audit row: AuditRow-only fields and the flags pricing adds are
+ * removed, so pricing it again is a clean re-run of the same code.
+ */
+export function toNormalized(row: AuditRow): NormalizedUsageRow {
+  const rest: Partial<AuditRow> = { ...row }
+  for (const k of AUDIT_ONLY_KEYS) delete rest[k]
   return {
-    kind: 'baseline',
-    baselineKey,
-    label: { kind: 'Estimated', reason: `logged tokens repriced at the list price of ${baselineKey}` },
-    baselineLabel: BASELINE_LABEL,
-    quality: 'unverified',
-    actual: pair(actual),
-    baseline: pair(baseline),
-    difference: pair(baseline - actual),
-    assumptions: [
-      ...rates.notes,
-      'reasoning tokens are priced as ordinary output',
-      'the same token counts are assumed on the baseline model',
-    ],
-    bandsUsed: used,
-    skipped,
+    ...(rest as NormalizedUsageRow),
+    flags: row.flags.filter((f) => !PRICING_FLAGS.has(f)),
+    mapping: row.mapping.filter((m) => !m.startsWith(CONTEXT_LINE_PREFIX)),
   }
+}
+
+export interface TransformOptions {
+  /** Effective snapshot models, used for provider families and tier keys. */
+  models: Readonly<Record<string, PricingModelEntry>>
+  /** Ratios scaled by 10^6: 1 is 1000000. */
+  tokenizerRatio: bigint
+  outputLengthRatio: bigint
+  /** Tokens added to uncached input per request (routing only; 0 for the baseline). */
+  overheadTokens: bigint
+  durationMap: DurationMap
+}
+
+export interface TransformedRow {
+  row: NormalizedUsageRow
+  /** The stated tier has no input and output rates on the target, so it was dropped (tier assumed). */
+  tierDropped: boolean
+  /** Cache-write durations were mapped to another provider family through the duration map. */
+  durationsMapped: boolean
+}
+
+/** n x r / den, rounded half up to a whole token count. */
+function scaleTokens(n: number, r: bigint, den: bigint): number {
+  const v = Number(divRound(BigInt(n) * r, den))
+  if (!Number.isSafeInteger(v)) throw new SavingsInputError('a scaled token count is too large; lower the ratios')
+  return v
+}
+
+function hasTierRates(entry: PricingModelEntry | undefined, tier: Tier): boolean {
+  if (!entry) return false
+  const suffix = TIER_SUFFIX[tier]
+  return entry.rates[`input_cost_per_token${suffix}`] !== undefined && entry.rates[`output_cost_per_token${suffix}`] !== undefined
 }
 
 /**
- * Route an eligible share of the chosen source models and input bands to a target model.
- * Empty sourceModels or inputBands mean all. Result = original cost minus scenario cost.
+ * The row as it would look on another model: model set to the target key, token classes scaled
+ * by the ratios and rounded per class, routing overhead added, cache-write durations mapped across
+ * provider families, tier kept or dropped. Long context is left to price(), per request.
  */
-export function modelRouting(bands: readonly Band[], snapshot: PricingSnapshot, input: RoutingAssumptions): RoutingResult {
-  const a = canonicalRoutingAssumptions(input)
-  if (a.targetModel === null) throw new SavingsInputError('Choose a target model')
-  const targetKey = a.targetModel
-  const entry = snapshot.models[targetKey]
-  const base = baseRates(targetKey, entry, 'Target')
-  const hasRead = entry?.rates.cache_read_input_token_cost !== undefined
-  const readRate = hasRead ? base.cacheRead : base.input
-  const writeRate = hasRead ? base.cacheWrite : base.input
+export function transformRow(row: AuditRow, targetKey: string, o: TransformOptions): TransformedRow {
+  const base = toNormalized(row)
+  const t = row.tokens
+  const tok = o.tokenizerRatio
+  const out = o.outputLengthRatio * o.tokenizerRatio
 
-  const share = ratio(a.eligibleShare, 'Eligible share', S)
-  const outRatio = ratio(a.outputLengthRatio, 'Output length ratio', null)
-  const tokRatio = ratio(a.tokenizerRatio, 'Tokenizer ratio', null)
-  const retry = ratio(a.retryFallbackRate, 'Retry and fallback rate', null)
-  const pass = a.calibrationPassRate === null ? null : ratio(a.calibrationPassRate, 'Calibration pass rate', S)
-  const overhead = int(a.routingOverheadTokens, 'Routing overhead tokens')
+  const uncachedInput = scaleTokens(t.uncachedInput, tok, S) + Number(o.overheadTokens * BigInt(row.requests))
+  if (!Number.isSafeInteger(uncachedInput)) throw new SavingsInputError('routing overhead tokens are too large')
+  const cacheRead = scaleTokens(t.cacheRead, tok, S)
+  const output = scaleTokens(t.output, out, S2)
+  const reasoning = t.reasoning === null ? null : Math.min(scaleTokens(t.reasoning, out, S2), output)
 
-  const models = new Set(a.sourceModels)
-  const inBands = new Set(a.inputBands)
-  const S2 = S * S
-  const S3 = S2 * S
-  const S4 = S3 * S
-
-  let original = 0n
-  /** Scenario cost scaled by S^4 so every ratio stays exact. It is never rounded. */
-  let scenario4 = 0n
-  let overflowPriced = false
-  let used = 0
-  let eligible = 0
-  const skipped: SkippedBand[] = []
-
-  for (const b of bands) {
-    if (!b.priced) {
-      skipped.push({ model: b.model, band: b.band, reason: 'band has rows that are Not priced or Unresolved, so it is left out' })
-      continue
-    }
-    const orig = usdToFemto(b.valueUsd)
-    original += orig
-    used++
-    if (b.model === OVERFLOW_KEY) overflowPriced = true
-    const modelMatch = models.size === 0 || models.has(b.model) || (b.resolvedKey !== null && models.has(b.resolvedKey))
-    const bandMatch = inBands.size === 0 || inBands.has(b.band)
-    if (!modelMatch || !bandMatch) {
-      scenario4 += orig * S4
-      continue
-    }
-    eligible++
-    // Share that stays on the original model.
-    scenario4 += orig * (S - share) * S3
-    // Target tokens: input (scale S), cache classes (scale S), output (scale S^2).
-    const inTok = BigInt(b.uncachedInput) * tokRatio + overhead * BigInt(b.requests) * S
-    const readTok = BigInt(b.cacheRead) * tokRatio
-    const writeTok = BigInt(b.cacheWrite) * tokRatio
-    const outTok = BigInt(b.output) * outRatio * tokRatio
-    const target2 = (inTok * base.input + readTok * readRate + writeTok * writeRate) * S + outTok * base.output
-    // Moved share, with retries and fallbacks on top: scale S^4.
-    scenario4 += target2 * share * (S + retry)
-    // Requests failing calibration also pay the original cost.
-    if (pass !== null) scenario4 += orig * share * (S - pass) * S2
+  const sourceEntry = row.resolvedKey === null ? undefined : o.models[row.resolvedKey]
+  const targetEntry = o.models[targetKey]
+  const sourceFamily = row.resolvedKey !== null && sourceEntry ? providerFamily(row.resolvedKey, sourceEntry) : null
+  const targetFamily = targetEntry ? providerFamily(targetKey, targetEntry) : null
+  const crossFamily = sourceFamily !== targetFamily
+  const cacheWrite: Record<CacheDuration, number> = { '5m': 0, '1h': 0, '30m': 0, '12h': 0 }
+  let durationsMapped = false
+  for (const d of DURATIONS) {
+    const n = scaleTokens(t.cacheWrite[d], tok, S)
+    if (n === 0) continue
+    const to = crossFamily ? o.durationMap[d] : d
+    if (to !== d) durationsMapped = true
+    cacheWrite[to] += n
   }
 
-  const original4 = original * S4
-  const filtered = models.size > 0 || inBands.size > 0
-  const assumptions = [
-    `eligible share ${a.eligibleShare}, output length ratio ${a.outputLengthRatio}, tokenizer ratio ${a.tokenizerRatio}, retry and fallback rate ${a.retryFallbackRate}, routing overhead ${a.routingOverheadTokens} tokens per request: ${ASSUMPTION_LABEL}`,
-    a.calibrationPassRate === null
-      ? 'no calibration pass rate set, so no fallback cost is added'
-      : `calibration pass rate ${a.calibrationPassRate} (${ASSUMPTION_LABEL}); the failing share also pays the original cost`,
-    hasRead
-      ? 'target has a cache read rate, so cache reads keep the target cache read rate and writes its base write rate'
-      : 'target has no cache read rate, so cache classes are priced as uncached input',
-    ...base.notes,
-    'reasoning tokens are priced as ordinary output',
-    ...(overflowPriced && filtered
-      ? [`rows grouped under ${OVERFLOW_KEY} past the key limit match no named source model or input band, so they keep their logged value`]
-      : []),
-    `scenario and savings are exact decimals at 1e-${ROUTING_SCALE_DIGITS} USD (1e-15 USD times four ratios of up to ${RATIO_DIGITS} decimal places); nothing is rounded except the display value, which is rounded to ${DISPLAY_DECIMALS} decimal places`,
-    'quality on the target model is unverified',
-  ]
+  // Excluded input modalities are never priced but count toward the long context threshold.
+  const excluded = { ...base.excluded }
+  for (const k of THRESHOLD_ONLY_INPUT_KEYS) {
+    const v = excluded[k]
+    if (typeof v === 'number' && Number.isSafeInteger(v) && v > 0) excluded[k] = scaleTokens(v, tok, S)
+  }
+
+  let tierStated = row.tierStated
+  let tierDropped = false
+  if (tierStated !== null && targetKey !== row.resolvedKey && !hasTierRates(targetEntry, tierStated)) {
+    tierStated = null
+    tierDropped = true
+  }
+
   return {
-    kind: 'routing',
-    targetKey,
-    label: { kind: 'Estimated', reason: `eligible share repriced at the list price of ${targetKey}` },
-    quality: 'unverified',
-    original: pair(original),
-    scenario: scaledPair(scenario4),
-    savings: scaledPair(original4 - scenario4),
-    assumptions,
-    bandsUsed: used,
-    bandsEligible: eligible,
-    skipped,
+    row: {
+      ...base,
+      modelLogged: targetKey,
+      tierStated,
+      tokens: { uncachedInput, cacheRead, cacheWrite, output, reasoning },
+      excluded,
+      reported: null,
+      unresolvedReason: null,
+    },
+    tierDropped,
+    durationsMapped,
+  }
+}
+
+/** Bounded count of reasons. */
+class Reasons {
+  private readonly counts = new Map<string, number>()
+  add(reason: string): void {
+    const k = this.counts.has(reason) || this.counts.size < REASON_CAP ? reason : 'other reasons'
+    this.counts.set(k, (this.counts.get(k) ?? 0) + 1)
+  }
+  text(): string {
+    return [...this.counts.entries()]
+      .sort(([a, x], [b, y]) => y - x || (a < b ? -1 : a > b ? 1 : 0))
+      .map(([k, n]) => `${k} (${n} ${n === 1 ? 'row' : 'rows'})`)
+      .join('; ')
+  }
+}
+
+function rowsText(n: number): string {
+  return `${n} ${n === 1 ? 'row' : 'rows'}`
+}
+
+export interface ScenarioRun {
+  /** Price a batch of audit rows into the running sums. Memory does not grow with rows. */
+  add(rows: readonly AuditRow[]): void
+  result(elapsedMs: number): ScenarioResult
+}
+
+interface Side {
+  tierDropped: number
+  durationsMapped: number
+}
+
+/**
+ * Baseline and routing scenario over audit rows, fed in batches.
+ * One pricing engine prices every row: the list price as logged, the baseline and the target.
+ */
+export function createScenario(req: ScenarioRequest): ScenarioRun {
+  const engine = createPricingEngine(req.snapshot, req.snapshotMeta)
+  const models = engine.models
+  const durationMap = req.durationMap
+  const neutral: TransformOptions = { models, tokenizerRatio: S, outputLengthRatio: S, overheadTokens: 0n, durationMap }
+
+  const baselineKey = req.baselineKey
+  if (baselineKey !== null && !Object.hasOwn(models, baselineKey)) throw new SavingsInputError(`Baseline model "${baselineKey}" is not in the snapshot`)
+
+  const a = req.routing === null ? null : canonicalRoutingAssumptions(req.routing)
+  let targetKey: string | null = null
+  let share = 0n
+  let retry = 0n
+  let pass: bigint | null = null
+  let routingOpts: TransformOptions | null = null
+  let sourceModels = new Set<string>()
+  let inputBands = new Set<string>()
+  if (a !== null) {
+    if (a.targetModel === null) throw new SavingsInputError('Choose a target model')
+    if (!Object.hasOwn(models, a.targetModel)) throw new SavingsInputError(`Target model "${a.targetModel}" is not in the snapshot`)
+    targetKey = a.targetModel
+    share = ratio(a.eligibleShare, 'Eligible share', S)
+    const outRatio = ratio(a.outputLengthRatio, 'Output length ratio', null)
+    const tokRatio = ratio(a.tokenizerRatio, 'Tokenizer ratio', null)
+    retry = ratio(a.retryFallbackRate, 'Retry and fallback rate', null)
+    pass = a.calibrationPassRate === null ? null : ratio(a.calibrationPassRate, 'Calibration pass rate', S)
+    if (!Number.isSafeInteger(a.routingOverheadTokens) || a.routingOverheadTokens < 0) {
+      throw new SavingsInputError('Routing overhead tokens must be a non-negative whole number')
+    }
+    routingOpts = { models, tokenizerRatio: tokRatio, outputLengthRatio: outRatio, overheadTokens: BigInt(a.routingOverheadTokens), durationMap }
+    sourceModels = new Set(a.sourceModels)
+    inputBands = new Set(a.inputBands)
+  }
+
+  const thresholdCache = new Map<string, boolean>()
+  const hasLongContext = (key: string | null): boolean => {
+    if (key === null) return false
+    let v = thresholdCache.get(key)
+    if (v === undefined) {
+      const entry = models[key]
+      v = entry !== undefined && contextThresholds(entry).length > 0
+      thresholdCache.set(key, v)
+    }
+    return v
+  }
+
+  let rowsRead = 0
+  let rowsCompared = 0
+  const leftOut = new Map<string, number>()
+  let listOriginal = 0n
+  let timeBucketRows = 0
+  let longContextUncertain = false
+  const lvl = { rows: 0, logged: 0n, list: 0n }
+
+  const base = { value: 0n, compared: 0n, priced: 0, notPriced: 0, reasons: new Reasons() }
+  const baseSide: Side = { tierDropped: 0, durationsMapped: 0 }
+  /** Routing scenario scaled by 10^ROUTING_SCALE_DIGITS - 15 (S^3 on femto). Never rounded. */
+  let scenario3 = 0n
+  let eligibleRows = 0
+  let fallbackRows = 0
+  const fallbackReasons = new Reasons()
+  const routeSide: Side = { tierDropped: 0, durationsMapped: 0 }
+
+  function leave(reason: string): void {
+    leftOut.set(reason, (leftOut.get(reason) ?? 0) + 1)
+  }
+
+  function priceAt(row: AuditRow, key: string, o: TransformOptions, side: Side): AuditRow {
+    const t = transformRow(row, key, o)
+    if (t.tierDropped) side.tierDropped++
+    if (t.durationsMapped) side.durationsMapped++
+    return engine.price(t.row)
+  }
+
+  function addRow(row: AuditRow): void {
+    rowsRead++
+    if (!row.counted) return leave(LEFT_OUT.notCounted)
+    if (row.flags.includes('malformed')) return leave(LEFT_OUT.malformed)
+    if (row.flags.includes('estimate_incomplete')) return leave(LEFT_OUT.estimateIncomplete)
+    if (row.cost.label.kind === 'Unresolved') return leave(LEFT_OUT.unresolved)
+
+    // List price of the row as logged: the same snapshot and code, with any reported amount set aside.
+    const orig = engine.price({ ...toNormalized(row), reported: null })
+    if (orig.flags.includes('billed_class_missing')) return leave(LEFT_OUT.estimateIncomplete)
+    if (orig.cost.estimateUsd === null) return leave(LEFT_OUT.noListPrice)
+    const origF = usdToFemto(orig.cost.estimateUsd)
+    rowsCompared++
+    listOriginal += origF
+
+    if (row.cost.label.kind === 'Measured charge' && row.cost.valueUsd !== null) {
+      lvl.rows++
+      lvl.logged += usdToFemto(row.cost.valueUsd)
+      lvl.list += origF
+    }
+
+    const eligible =
+      targetKey !== null &&
+      (sourceModels.size === 0 || (row.modelLogged !== null && sourceModels.has(row.modelLogged))) &&
+      (inputBands.size === 0 || inputBands.has(inputBand(inputPerRequest(row))))
+
+    if (row.granularity === 'time_bucket') {
+      timeBucketRows++
+      if (hasLongContext(orig.resolvedKey) || hasLongContext(baselineKey) || (eligible && hasLongContext(targetKey))) longContextUncertain = true
+    }
+
+    if (baselineKey !== null) {
+      const b = priceAt(orig, baselineKey, neutral, baseSide)
+      if (b.cost.estimateUsd === null) {
+        base.notPriced++
+        base.reasons.add(b.cost.estimateLabel.reason)
+      } else {
+        base.priced++
+        base.value += usdToFemto(b.cost.estimateUsd)
+        base.compared += origF
+      }
+    }
+
+    if (targetKey === null || routingOpts === null) return
+    if (!eligible) {
+      scenario3 += origF * S3
+      return
+    }
+    eligibleRows++
+    const tr = priceAt(orig, targetKey, routingOpts, routeSide)
+    if (tr.cost.estimateUsd === null) {
+      // The target has no rate for this row, so it keeps its original list price.
+      fallbackRows++
+      fallbackReasons.add(tr.cost.estimateLabel.reason)
+      scenario3 += origF * S3
+      return
+    }
+    const target = usdToFemto(tr.cost.estimateUsd)
+    // (1 - share) x orig + share x [(1 + retry) x target + (1 - pass) x orig], at scale S^3.
+    scenario3 += (S - share) * origF * S2
+    scenario3 += share * (S + retry) * target * S
+    if (pass !== null) scenario3 += share * (S - pass) * origF * S
+  }
+
+  function sideNotes(side: Side, key: string): string[] {
+    const notes: string[] = []
+    if (side.tierDropped > 0) {
+      notes.push(`${rowsText(side.tierDropped)} stated a tier that ${key} has no input and output rates for, so standard is assumed (tier assumed)`)
+    }
+    if (side.durationsMapped > 0) {
+      notes.push(`${rowsText(side.durationsMapped)} moved to another provider family, so their cache-write durations follow the duration map (${ASSUMPTION_LABEL})`)
+    }
+    return notes
+  }
+
+  function assumptions(): string[] {
+    const out: string[] = []
+    if (baselineKey !== null) out.push(`baseline model ${baselineKey}: ${ASSUMPTION_LABEL}; the same token counts are assumed on it`)
+    if (a !== null) {
+      out.push(`target model ${a.targetModel}: ${ASSUMPTION_LABEL}`)
+      out.push(`source models ${a.sourceModels.length ? a.sourceModels.join(', ') : 'all'}: ${ASSUMPTION_LABEL}`)
+      out.push(`input bands ${a.inputBands.length ? a.inputBands.join(', ') : 'all'}: ${ASSUMPTION_LABEL}`)
+      out.push(`eligible share ${a.eligibleShare}: ${ASSUMPTION_LABEL}`)
+      out.push(`output length ratio ${a.outputLengthRatio}: ${ASSUMPTION_LABEL}`)
+      out.push(`tokenizer ratio ${a.tokenizerRatio}: ${ASSUMPTION_LABEL}`)
+      out.push(`retry and fallback rate ${a.retryFallbackRate}: ${ASSUMPTION_LABEL}`)
+      out.push(`routing overhead ${a.routingOverheadTokens} tokens per request, added to uncached input: ${ASSUMPTION_LABEL}`)
+      out.push(
+        a.calibrationPassRate === null
+          ? 'no calibration pass rate set, so no fallback cost is added'
+          : `calibration pass rate ${a.calibrationPassRate}: ${ASSUMPTION_LABEL}; the failing share also pays the original cost`,
+      )
+    }
+    const map = DURATIONS.map((d) => `${d} to ${durationMap[d]}`).join(', ')
+    out.push(`cache-write duration map when tokens move to another provider family: ${map}: ${ASSUMPTION_LABEL}; within the same family durations are kept`)
+    out.push('each row is priced by the same pricing code and snapshot as the audit, per request, so long context rates apply when a scaled request crosses a threshold')
+    out.push('token counts times a ratio are rounded half up to whole tokens, per class and per row, from the exact value; a ratio of 1 leaves them unchanged; reasoning is capped at output')
+    out.push(`a stated tier is kept when the target model has input and output rates for it; otherwise standard is assumed (tier assumed)`)
+    if (a !== null) {
+      out.push(
+        `scenario and savings are exact decimals at 1e-${ROUTING_SCALE_DIGITS} USD (1e-15 USD times three ratios of up to ${RATIO_DIGITS} decimal places); only the display value is rounded, half away from zero, to ${DISPLAY_DECIMALS} decimal places`,
+      )
+    }
+    if (timeBucketRows > 0) out.push(TIME_BUCKET_ASSUMPTION)
+    if (lvl.rows > 0) out.push('logged charges are compared with list price on their own line and are never counted as savings')
+    out.push('quality on the baseline and target models is unverified')
+    return out
+  }
+
+  function result(elapsedMs: number): ScenarioResult {
+    const rowsLeftOut = LEFT_OUT_ORDER.filter((r) => leftOut.has(r)).map((reason) => ({ reason, rows: leftOut.get(reason)! }))
+    const label: Label = { kind: 'Estimated', reason: `logged tokens repriced at list prices of snapshot ${req.snapshotMeta.date} under ${ASSUMPTION_LABEL}s` }
+
+    const baseline: ScenarioResult['baseline'] =
+      baselineKey === null
+        ? null
+        : {
+            key: baselineKey,
+            label: BASELINE_LABEL,
+            value: pair(base.value),
+            difference: pair(base.value - base.compared),
+            comparedOriginal: pair(base.compared),
+            rowsPriced: base.priced,
+            rowsNotPriced: base.notPriced,
+            notes: [
+              ...(base.notPriced > 0 ? [`${rowsText(base.notPriced)} cannot be priced at ${baselineKey} and are left out of both sides: ${base.reasons.text()}`] : []),
+              ...sideNotes(baseSide, baselineKey),
+            ],
+          }
+
+    const routing: ScenarioResult['routing'] =
+      targetKey === null
+        ? null
+        : {
+            targetKey,
+            eligibleRows,
+            targetRateFallbackRows: fallbackRows,
+            scenario: scaledPair(scenario3),
+            savings: scaledPair(listOriginal * S3 - scenario3),
+            notes: [
+              ...(fallbackRows > 0
+                ? [`${fallbackRows} eligible rows kept their original cost because the target has no rate for them: ${fallbackReasons.text()}`]
+                : []),
+              ...sideNotes(routeSide, targetKey),
+            ],
+          }
+
+    return {
+      label,
+      quality: 'unverified',
+      snapshot: { file: req.snapshotMeta.file, date: req.snapshotMeta.date, sha256: req.snapshotMeta.sha256, commit: req.snapshotMeta.commit },
+      rowsRead,
+      rowsCompared,
+      rowsLeftOut,
+      listOriginal: pair(listOriginal),
+      baseline,
+      routing,
+      loggedVersusList:
+        lvl.rows === 0
+          ? null
+          : { label: LOGGED_VERSUS_LIST_LABEL, rows: lvl.rows, logged: pair(lvl.logged), list: pair(lvl.list), difference: pair(lvl.logged - lvl.list) },
+      timeBucketRows,
+      longContextUncertain,
+      assumptions: assumptions(),
+      durationMap: { ...durationMap },
+      elapsedMs,
+    }
+  }
+
+  return {
+    add(rows) {
+      for (const r of rows) addRow(r)
+    },
+    result,
   }
 }

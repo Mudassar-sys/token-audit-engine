@@ -48,7 +48,16 @@ export interface SampleStats {
   columns: number
   /** Rows per custom_llm_provider. */
   sourceMix: Record<string, number>
+  /** The PRNG seed the rows came from. */
+  seed: number
+  /** Rows on a model the snapshot does not list, written to be Not priced. Their spend is never checked. */
+  expectedNotPriced: number
+  /** Rows with spend 0 on a model whose snapshot rates are not zero, written to be Unresolved. */
+  expectedUnresolved: number
 }
+
+/** What the engine is expected to make of one generated row. */
+export type SampleRowOutcome = 'priced' | 'not_priced' | 'unresolved'
 
 /** mulberry32: small, fast, deterministic 32-bit PRNG. */
 export function mulberry32(seed: number): () => number {
@@ -71,21 +80,24 @@ interface ModelSpec {
   /** USD per token as decimal text: input, output, cache read, cache write. */
   rates: { input: string; output: string; read: string; write: string }
   cache: CacheStyle
+  /** Cache writes are written only for providers whose write duration has a documented mapping. */
   writes: boolean
   reasoning: boolean
+  /** false for the model ids the pricing snapshot does not list. */
+  known: boolean
 }
 
 /** Models in the pricing snapshot, plus two that are not (about 2% of rows). */
 const MODELS: readonly ModelSpec[] = [
-  { model: 'gpt-4o', provider: 'openai', weight: 24, rates: { input: '0.0000025', output: '0.00001', read: '0.00000125', write: '0' }, cache: 'openai', writes: false, reasoning: false },
-  { model: 'gpt-4o-mini', provider: 'openai', weight: 22, rates: { input: '0.00000015', output: '0.0000006', read: '0.000000075', write: '0' }, cache: 'openai', writes: false, reasoning: false },
-  { model: 'gpt-6.1-sol', provider: 'openai', weight: 8, rates: { input: '0.000002', output: '0.00001', read: '0.0000001', write: '0.0000025' }, cache: 'openai', writes: true, reasoning: true },
-  { model: 'claude-sonnet-4-5-20250929', provider: 'anthropic', weight: 15, rates: { input: '0.000003', output: '0.000015', read: '0.0000003', write: '0.00000375' }, cache: 'anthropic', writes: true, reasoning: false },
-  { model: 'claude-haiku-4-5', provider: 'anthropic', weight: 12, rates: { input: '0.000001', output: '0.000005', read: '0.0000001', write: '0.00000125' }, cache: 'anthropic', writes: true, reasoning: false },
-  { model: 'gemini-2.5-flash', provider: 'gemini', weight: 9, rates: { input: '0.0000003', output: '0.0000025', read: '0.00000003', write: '0' }, cache: 'openai', writes: false, reasoning: true },
-  { model: 'codestral/codestral-latest', provider: 'codestral', weight: 8, rates: { input: '0', output: '0', read: '0', write: '0' }, cache: 'none', writes: false, reasoning: false },
-  { model: 'unlisted-model-x', provider: 'openai', weight: 1, rates: { input: '0.000001', output: '0.000004', read: '0', write: '0' }, cache: 'none', writes: false, reasoning: false },
-  { model: 'internal-finetune-v3', provider: 'hosted_vllm', weight: 1, rates: { input: '0.0000005', output: '0.0000015', read: '0', write: '0' }, cache: 'none', writes: false, reasoning: false },
+  { model: 'gpt-4o', provider: 'openai', weight: 24, rates: { input: '0.0000025', output: '0.00001', read: '0.00000125', write: '0' }, cache: 'openai', writes: false, reasoning: false, known: true },
+  { model: 'gpt-4o-mini', provider: 'openai', weight: 22, rates: { input: '0.00000015', output: '0.0000006', read: '0.000000075', write: '0' }, cache: 'openai', writes: false, reasoning: false, known: true },
+  { model: 'gpt-6.1-sol', provider: 'openai', weight: 8, rates: { input: '0.000002', output: '0.00001', read: '0.0000001', write: '0.0000025' }, cache: 'openai', writes: true, reasoning: true, known: true },
+  { model: 'claude-sonnet-4-5-20250929', provider: 'anthropic', weight: 15, rates: { input: '0.000003', output: '0.000015', read: '0.0000003', write: '0.00000375' }, cache: 'anthropic', writes: true, reasoning: false, known: true },
+  { model: 'claude-haiku-4-5', provider: 'anthropic', weight: 12, rates: { input: '0.000001', output: '0.000005', read: '0.0000001', write: '0.00000125' }, cache: 'anthropic', writes: true, reasoning: false, known: true },
+  { model: 'gemini-2.5-flash', provider: 'gemini', weight: 9, rates: { input: '0.0000003', output: '0.0000025', read: '0.00000003', write: '0' }, cache: 'openai', writes: false, reasoning: true, known: true },
+  { model: 'codestral/codestral-latest', provider: 'codestral', weight: 8, rates: { input: '0', output: '0', read: '0', write: '0' }, cache: 'none', writes: false, reasoning: false, known: true },
+  { model: 'unlisted-model-x', provider: 'openai', weight: 1, rates: { input: '0.000001', output: '0.000004', read: '0', write: '0' }, cache: 'none', writes: false, reasoning: false, known: false },
+  { model: 'internal-finetune-v3', provider: 'hosted_vllm', weight: 1, rates: { input: '0.0000005', output: '0.0000015', read: '0', write: '0' }, cache: 'none', writes: false, reasoning: false, known: false },
 ]
 
 /** Model ids in the sample that the pricing snapshot does not list. */
@@ -93,12 +105,25 @@ export const SAMPLE_UNKNOWN_MODELS = ['unlisted-model-x', 'internal-finetune-v3'
 
 const WEIGHT_TOTAL = MODELS.reduce((s, m) => s + m.weight, 0)
 
+/**
+ * custom_llm_provider values whose unsplit cache writes have a documented duration
+ * (anthropic: 5m, openai: 30m). Writes on any other provider would be Not priced, so the
+ * sample never writes them.
+ */
+export const SAMPLE_WRITE_PROVIDERS: ReadonlySet<string> = new Set(['anthropic', 'openai'])
+
+/**
+ * Largest prompt the sample writes. It stays below every long-context threshold of the
+ * sample's models, so every priced row uses base rates.
+ */
+export const SAMPLE_MAX_PROMPT_TOKENS = 180_000
+
 /** Input size bands with weights (per 100) and inclusive token ranges. */
 const PROMPT_BANDS = [
   { weight: 45, min: 20, max: 999 },
   { weight: 40, min: 1000, max: 9999 },
   { weight: 13, min: 10000, max: 99999 },
-  { weight: 2, min: 100000, max: 180000 },
+  { weight: 2, min: 100000, max: SAMPLE_MAX_PROMPT_TOKENS },
 ] as const
 
 function csvCell(v: string): string {
@@ -157,19 +182,21 @@ class RowFactory {
     return 100
   }
 
-  /** One CSV line (with trailing newline) and its provider. */
-  next(): { line: string; provider: string } {
+  /** One CSV line (with trailing newline), its provider and the outcome the engine should give it. */
+  next(): GeneratedRow {
     const i = this.index++
     const m = this.pickModel()
     const prompt = this.promptTokens()
     let read = 0
     let write = 0
     if (m.cache !== 'none' && this.int(100) < 40) read = Math.floor((prompt * this.between(10, 95)) / 100)
-    if (m.writes && this.int(100) < 15) write = Math.min(prompt - read, this.between(50, 4000))
+    if (m.writes && SAMPLE_WRITE_PROVIDERS.has(m.provider) && this.int(100) < 15) write = Math.min(prompt - read, this.between(50, 4000))
     const completion = this.int(100) < 5 ? this.between(1500, 8000) : this.between(5, 1500)
     const reasoning = m.reasoning && this.int(100) < 60 ? Math.floor((completion * this.between(20, 80)) / 100) : null
     const uncached = prompt - read - write
 
+    // About 1% of rows log spend 0 on a model with non-zero rates. On a listed model that row
+    // is Unresolved; on an unlisted model it stays Not priced.
     const zeroSpend = m.rates.input !== '0' && this.int(100) < 1
     let spend = '0'
     if (!zeroSpend) {
@@ -180,6 +207,7 @@ class RowFactory {
         tokensTimesRate(completion, rateToFemto(m.rates.output))
       spend = femtoToExactUsd(femto)
     }
+    const outcome: SampleRowOutcome = !m.known ? 'not_priced' : zeroSpend ? 'unresolved' : 'priced'
 
     const usage: Record<string, unknown> = {}
     if (m.cache === 'anthropic') {
@@ -199,6 +227,7 @@ class RowFactory {
     const start = START_MS + this.int(30 * DAY_MS)
     const duration = this.between(200, 30000)
     const firstToken = Math.min(duration, this.between(80, 2500))
+    // prompt_tokens and completion_tokens are always written, so no billed class is ever absent.
     const cells: string[] = [
       `req-${this.runId}-${i.toString(16).padStart(8, '0')}`,
       'acompletion',
@@ -230,8 +259,28 @@ class RowFactory {
       `sess-${this.hex(12)}`,
       'success',
     ]
-    return { line: `${cells.map(csvCell).join(',')}\n`, provider: m.provider }
+    return { line: `${cells.map(csvCell).join(',')}\n`, provider: m.provider, outcome }
   }
+}
+
+interface GeneratedRow {
+  line: string
+  provider: string
+  outcome: SampleRowOutcome
+}
+
+const HEADER = `${SAMPLE_COLUMNS.join(',')}\n`
+
+function emptyStats(seed: number): SampleStats {
+  return { bytes: 0, rows: 0, columns: SAMPLE_COLUMNS.length, sourceMix: {}, seed, expectedNotPriced: 0, expectedUnresolved: 0 }
+}
+
+function countRow(stats: SampleStats, row: GeneratedRow): void {
+  stats.bytes += row.line.length
+  stats.rows++
+  stats.sourceMix[row.provider] = (stats.sourceMix[row.provider] ?? 0) + 1
+  if (row.outcome === 'not_priced') stats.expectedNotPriced++
+  else if (row.outcome === 'unresolved') stats.expectedUnresolved++
 }
 
 /**
@@ -240,21 +289,18 @@ class RowFactory {
  * The generator's return value carries the stats.
  */
 export function* generateSampleChunks(targetBytes: number, seed: number): Generator<string, SampleStats, void> {
-  const header = `${SAMPLE_COLUMNS.join(',')}\n`
-  const stats: SampleStats = { bytes: 0, rows: 0, columns: SAMPLE_COLUMNS.length, sourceMix: {} }
-  if (targetBytes < header.length) return stats
+  const stats = emptyStats(seed)
+  if (targetBytes < HEADER.length) return stats
   const factory = new RowFactory(seed)
-  let parts: string[] = [header]
-  let partBytes = header.length
-  stats.bytes = header.length
+  let parts: string[] = [HEADER]
+  let partBytes = HEADER.length
+  stats.bytes = HEADER.length
   for (;;) {
-    const { line, provider } = factory.next()
-    if (stats.bytes + line.length > targetBytes) break
-    parts.push(line)
-    partBytes += line.length
-    stats.bytes += line.length
-    stats.rows++
-    stats.sourceMix[provider] = (stats.sourceMix[provider] ?? 0) + 1
+    const row = factory.next()
+    if (stats.bytes + row.line.length > targetBytes) break
+    parts.push(row.line)
+    partBytes += row.line.length
+    countRow(stats, row)
     if (partBytes >= SAMPLE_CHUNK_BYTES) {
       yield parts.join('')
       parts = []
@@ -263,4 +309,31 @@ export function* generateSampleChunks(targetBytes: number, seed: number): Genera
   }
   if (parts.length) yield parts.join('')
   return stats
+}
+
+/**
+ * Exactly `rows` data rows after the header, in chunks of about 1 MiB. The rows are the
+ * same as the first `rows` rows of generateSampleChunks with the same seed.
+ */
+export function generateSampleRows(rows: number, seed: number): { chunks: string[]; stats: SampleStats } {
+  if (!Number.isSafeInteger(rows) || rows < 0) throw new RangeError(`rows must be a non-negative integer, got ${rows}`)
+  const stats = emptyStats(seed)
+  const factory = new RowFactory(seed)
+  const chunks: string[] = []
+  let parts: string[] = [HEADER]
+  let partBytes = HEADER.length
+  stats.bytes = HEADER.length
+  while (stats.rows < rows) {
+    const row = factory.next()
+    parts.push(row.line)
+    partBytes += row.line.length
+    countRow(stats, row)
+    if (partBytes >= SAMPLE_CHUNK_BYTES) {
+      chunks.push(parts.join(''))
+      parts = []
+      partBytes = 0
+    }
+  }
+  if (parts.length) chunks.push(parts.join(''))
+  return { chunks, stats }
 }

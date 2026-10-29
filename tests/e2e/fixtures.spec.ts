@@ -4,7 +4,7 @@ import { expect, test } from '@playwright/test'
 import { PricingManifest, PricingSnapshot, type AuditRow, type AuditSummary } from '../../src/engine/contracts'
 import { detectFromSample } from '../../src/engine/detect'
 import { runImport } from '../../src/engine/pipeline'
-import { FIXTURES, autoFixtures, importFixture } from './helpers'
+import { FIXTURES, autoFixtures, forceBlobExport, importFixture } from './helpers'
 
 const PUBLIC = join(process.cwd(), 'public', 'pricing')
 const manifest = PricingManifest.parse(JSON.parse(readFileSync(join(PUBLIC, 'manifest.json'), 'utf8')))
@@ -30,6 +30,11 @@ async function expected(file: string): Promise<AuditSummary> {
     onProgress: () => {},
   })
 }
+
+// Any export in these tests downloads through the fallback, never a save dialog.
+test.beforeEach(async ({ page }) => {
+  await forceBlobExport(page)
+})
 
 for (const file of autoFixtures()) {
   test(`imports ${file} and renders its labels and totals`, async ({ page }) => {

@@ -70,6 +70,43 @@ function LabelText({ label }: { label: Label | undefined }) {
   )
 }
 
+/** Billed token classes that the source left out (input always; output unless the call is an embedding). */
+function missingBilledClasses(row: AuditRow): string[] {
+  const out: string[] = []
+  if (row.notMeasured.includes('uncachedInput')) out.push('input')
+  if ((row.operation ?? 'generate') === 'generate' && row.notMeasured.includes('output')) out.push('output')
+  return out
+}
+
+/** A row whose source left out a billed token class: the subtotal of what is present, and how it is used. */
+function BilledClassMissing({ row }: { row: AuditRow }) {
+  const missing = missingBilledClasses(row)
+  const what = missing.length ? `${missing.join(' and ')} tokens missing in the source` : 'a billed token class is missing in the source'
+  const amount = row.cost.estimateUsd === null ? 'not computable' : `${displayUsd(row.cost.estimateUsd)} (exact ${row.cost.estimateUsd})`
+  if (row.cost.label.kind === 'Measured charge') {
+    return (
+      <>
+        <dt>Incomplete estimate</dt>
+        <dd data-testid="billed-missing-incomplete">
+          {amount} <span className="badge" data-kind="Estimated">Estimated</span> incomplete, {what}. The row keeps its Measured charge.
+        </dd>
+      </>
+    )
+  }
+  return (
+    <>
+      <dt>Subtotal of the classes present</dt>
+      <dd data-testid="billed-missing-subtotal">
+        {amount} <span className="badge" data-kind="Estimated">Estimated</span> not counted in totals, {what}. The row is{' '}
+        <span className="badge" data-kind={row.cost.label.kind}>
+          {row.cost.label.kind}
+        </span>
+        .
+      </dd>
+    </>
+  )
+}
+
 function RowDetails({ row }: { row: AuditRow }) {
   const t = row.tokens
   const tokenRows: [string, string, number | null][] = [
@@ -99,10 +136,21 @@ function RowDetails({ row }: { row: AuditRow }) {
             {row.cost.estimateUsd === null ? 'not computable' : `${displayUsd(row.cost.estimateUsd)} (exact ${row.cost.estimateUsd})`}{' '}
             <LabelText label={row.cost.estimateLabel} />
           </dd>
-          <dt>Reported amount</dt>
-          <dd>
-            {row.reported ? `${displayUsd(row.reported.amountUsd)} (exact ${row.reported.amountUsd}) from ${row.reported.field}, ${row.reported.kind === 'charge' ? 'billed charge' : "gateway's own calculation"}` : 'none in the source'}
-          </dd>
+          {row.flags.includes('billed_class_missing') && <BilledClassMissing row={row} />}
+          {row.reported?.kind === 'gateway_estimate' ? (
+            <>
+              <dt>Gateway spend</dt>
+              <dd data-testid="gateway-spend">
+                {displayUsd(row.reported.amountUsd)} (exact {row.reported.amountUsd}) from {row.reported.field}, the gateway's own calculation.{' '}
+                <LabelText label={row.labels.reportedCharge} />
+              </dd>
+            </>
+          ) : (
+            <>
+              <dt>Reported amount</dt>
+              <dd>{row.reported ? `${displayUsd(row.reported.amountUsd)} (exact ${row.reported.amountUsd}) from ${row.reported.field}, billed charge` : 'none in the source'}</dd>
+            </>
+          )}
           {row.unresolvedReason && (
             <>
               <dt>Needs review</dt>

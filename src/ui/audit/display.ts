@@ -23,9 +23,9 @@ export function bucketValue(b: AggregateBucket): { text: string; partial: boolea
   return { text: displayUsd(b.valueUsd), partial: bucketIsPartial(b) }
 }
 
-/** A savings "Logged value" figure. It is a partial total when any group was left out. */
-export function loggedValue(amount: { displayUsd: string }, skipped: readonly unknown[]): { text: string; partial: boolean } {
-  return { text: amount.displayUsd, partial: skipped.length > 0 }
+/** A savings list-price figure. It is a partial total when any row was left out of the comparison. */
+export function loggedValue(amount: { displayUsd: string }, leftOut: readonly { reason?: string; rows: number }[]): { text: string; partial: boolean } {
+  return { text: amount.displayUsd, partial: leftOut.some((r) => r.rows > 0) }
 }
 
 export interface ExcludedGroup {

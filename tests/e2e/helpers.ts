@@ -28,3 +28,15 @@ export async function importFixture(page: Page, file: string) {
   await page.getByTestId('import-button').click()
   await expect(page.getByTestId('coverage-panel')).toBeVisible({ timeout: 60_000 })
 }
+
+/**
+ * Make the CSV export take its download fallback: the page then has no save dialog, as in browsers
+ * without one. Call before the first navigation. Tests that expect a download need this, because a
+ * real save dialog cannot be answered from a test.
+ */
+export async function forceBlobExport(page: Page) {
+  await page.addInitScript(() => {
+    delete (window as { showSaveFilePicker?: unknown }).showSaveFilePicker
+    delete (Window.prototype as { showSaveFilePicker?: unknown }).showSaveFilePicker
+  })
+}

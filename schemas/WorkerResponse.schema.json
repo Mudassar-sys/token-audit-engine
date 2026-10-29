@@ -1019,13 +1019,20 @@
         },
         "partialRowsDeleted": {
           "type": "boolean"
+        },
+        "auditId": {
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "required": [
         "type",
         "cancelMs",
         "deleteMs",
-        "partialRowsDeleted"
+        "partialRowsDeleted",
+        "auditId"
       ],
       "additionalProperties": false
     },
@@ -1290,7 +1297,9 @@
                     "aggregate_mismatch",
                     "cost_inconsistent",
                     "malformed",
-                    "model_missing"
+                    "model_missing",
+                    "billed_class_missing",
+                    "estimate_incomplete"
                   ]
                 }
               },
@@ -1307,6 +1316,13 @@
                 "type": "integer",
                 "minimum": 0,
                 "maximum": 9007199254740991
+              },
+              "operation": {
+                "type": "string",
+                "enum": [
+                  "generate",
+                  "embedding"
+                ]
               },
               "resolvedKey": {
                 "type": [
@@ -1792,7 +1808,9 @@
                       "aggregate_mismatch",
                       "cost_inconsistent",
                       "malformed",
-                      "model_missing"
+                      "model_missing",
+                      "billed_class_missing",
+                      "estimate_incomplete"
                     ]
                   }
                 },
@@ -1809,6 +1827,13 @@
                   "type": "integer",
                   "minimum": 0,
                   "maximum": 9007199254740991
+                },
+                "operation": {
+                  "type": "string",
+                  "enum": [
+                    "generate",
+                    "embedding"
+                  ]
                 },
                 "resolvedKey": {
                   "type": [
@@ -2297,7 +2322,9 @@
                     "aggregate_mismatch",
                     "cost_inconsistent",
                     "malformed",
-                    "model_missing"
+                    "model_missing",
+                    "billed_class_missing",
+                    "estimate_incomplete"
                   ]
                 }
               },
@@ -2314,6 +2341,13 @@
                 "type": "integer",
                 "minimum": 0,
                 "maximum": 9007199254740991
+              },
+              "operation": {
+                "type": "string",
+                "enum": [
+                  "generate",
+                  "embedding"
+                ]
               }
             },
             "required": [
@@ -2364,11 +2398,551 @@
           "type": "integer",
           "minimum": -9007199254740991,
           "maximum": 9007199254740991
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "path": {
+          "type": "string",
+          "enum": [
+            "stream",
+            "blob"
+          ]
+        },
+        "ms": {
+          "type": "number"
         }
       },
       "required": [
         "type",
         "blob",
+        "rows",
+        "bytes",
+        "path",
+        "ms"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "exportProgress"
+        },
+        "rows": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "type",
+        "rows",
+        "bytes"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "scenarioProgress"
+        },
+        "rowsDone": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "rowsTotal": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "type",
+        "rowsDone",
+        "rowsTotal"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "scenario"
+        },
+        "result": {
+          "type": "object",
+          "properties": {
+            "label": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "Measured",
+                    "Measured charge",
+                    "Estimated",
+                    "Not measured",
+                    "Not priced",
+                    "Unresolved"
+                  ]
+                },
+                "reason": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "reason"
+              ],
+              "additionalProperties": false
+            },
+            "quality": {
+              "type": "string",
+              "const": "unverified"
+            },
+            "snapshot": {
+              "type": "object",
+              "properties": {
+                "file": {
+                  "type": "string"
+                },
+                "date": {
+                  "type": "string"
+                },
+                "sha256": {
+                  "type": "string"
+                },
+                "commit": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "file",
+                "date",
+                "sha256",
+                "commit"
+              ],
+              "additionalProperties": false
+            },
+            "rowsRead": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            },
+            "rowsCompared": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            },
+            "rowsLeftOut": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string"
+                  },
+                  "rows": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "reason",
+                  "rows"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "listOriginal": {
+              "type": "object",
+              "properties": {
+                "exactUsd": {
+                  "type": "string",
+                  "pattern": "^-?\\d+(\\.\\d+)?$"
+                },
+                "displayUsd": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "exactUsd",
+                "displayUsd"
+              ],
+              "additionalProperties": false
+            },
+            "baseline": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "key": {
+                      "type": "string"
+                    },
+                    "label": {
+                      "type": "string",
+                      "const": "Modelled: the baseline never ran"
+                    },
+                    "value": {
+                      "type": "object",
+                      "properties": {
+                        "exactUsd": {
+                          "type": "string",
+                          "pattern": "^-?\\d+(\\.\\d+)?$"
+                        },
+                        "displayUsd": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "exactUsd",
+                        "displayUsd"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "difference": {
+                      "type": "object",
+                      "properties": {
+                        "exactUsd": {
+                          "type": "string",
+                          "pattern": "^-?\\d+(\\.\\d+)?$"
+                        },
+                        "displayUsd": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "exactUsd",
+                        "displayUsd"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "comparedOriginal": {
+                      "type": "object",
+                      "properties": {
+                        "exactUsd": {
+                          "type": "string",
+                          "pattern": "^-?\\d+(\\.\\d+)?$"
+                        },
+                        "displayUsd": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "exactUsd",
+                        "displayUsd"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "rowsPriced": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "rowsNotPriced": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "notes": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": [
+                    "key",
+                    "label",
+                    "value",
+                    "difference",
+                    "comparedOriginal",
+                    "rowsPriced",
+                    "rowsNotPriced",
+                    "notes"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "routing": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "targetKey": {
+                      "type": "string"
+                    },
+                    "eligibleRows": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "targetRateFallbackRows": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "scenario": {
+                      "type": "object",
+                      "properties": {
+                        "exactUsd": {
+                          "type": "string",
+                          "pattern": "^-?\\d+(\\.\\d+)?$"
+                        },
+                        "displayUsd": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "exactUsd",
+                        "displayUsd"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "savings": {
+                      "type": "object",
+                      "properties": {
+                        "exactUsd": {
+                          "type": "string",
+                          "pattern": "^-?\\d+(\\.\\d+)?$"
+                        },
+                        "displayUsd": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "exactUsd",
+                        "displayUsd"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "notes": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": [
+                    "targetKey",
+                    "eligibleRows",
+                    "targetRateFallbackRows",
+                    "scenario",
+                    "savings",
+                    "notes"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "loggedVersusList": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "label": {
+                      "type": "string",
+                      "const": "logged charges versus list price"
+                    },
+                    "rows": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "logged": {
+                      "type": "object",
+                      "properties": {
+                        "exactUsd": {
+                          "type": "string",
+                          "pattern": "^-?\\d+(\\.\\d+)?$"
+                        },
+                        "displayUsd": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "exactUsd",
+                        "displayUsd"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "list": {
+                      "type": "object",
+                      "properties": {
+                        "exactUsd": {
+                          "type": "string",
+                          "pattern": "^-?\\d+(\\.\\d+)?$"
+                        },
+                        "displayUsd": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "exactUsd",
+                        "displayUsd"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "difference": {
+                      "type": "object",
+                      "properties": {
+                        "exactUsd": {
+                          "type": "string",
+                          "pattern": "^-?\\d+(\\.\\d+)?$"
+                        },
+                        "displayUsd": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "exactUsd",
+                        "displayUsd"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "label",
+                    "rows",
+                    "logged",
+                    "list",
+                    "difference"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "timeBucketRows": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            },
+            "longContextUncertain": {
+              "type": "boolean"
+            },
+            "assumptions": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "durationMap": {
+              "type": "object",
+              "properties": {
+                "5m": {
+                  "type": "string",
+                  "enum": [
+                    "5m",
+                    "1h",
+                    "30m",
+                    "12h"
+                  ]
+                },
+                "1h": {
+                  "type": "string",
+                  "enum": [
+                    "5m",
+                    "1h",
+                    "30m",
+                    "12h"
+                  ]
+                },
+                "30m": {
+                  "type": "string",
+                  "enum": [
+                    "5m",
+                    "1h",
+                    "30m",
+                    "12h"
+                  ]
+                },
+                "12h": {
+                  "type": "string",
+                  "enum": [
+                    "5m",
+                    "1h",
+                    "30m",
+                    "12h"
+                  ]
+                }
+              },
+              "required": [
+                "5m",
+                "1h",
+                "30m",
+                "12h"
+              ],
+              "additionalProperties": false
+            },
+            "elapsedMs": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "label",
+            "quality",
+            "snapshot",
+            "rowsRead",
+            "rowsCompared",
+            "rowsLeftOut",
+            "listOriginal",
+            "baseline",
+            "routing",
+            "loggedVersusList",
+            "timeBucketRows",
+            "longContextUncertain",
+            "assumptions",
+            "durationMap",
+            "elapsedMs"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "type",
+        "result"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "count"
+        },
+        "rows": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "type",
         "rows"
       ],
       "additionalProperties": false
@@ -2462,6 +3036,24 @@
         },
         "ms": {
           "type": "number"
+        },
+        "seed": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "sha256": {
+          "type": "string"
+        },
+        "expectedNotPriced": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "expectedUnresolved": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
         }
       },
       "required": [
@@ -2471,7 +3063,11 @@
         "rows",
         "columns",
         "sourceMix",
-        "ms"
+        "ms",
+        "seed",
+        "sha256",
+        "expectedNotPriced",
+        "expectedUnresolved"
       ],
       "additionalProperties": false
     }

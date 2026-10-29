@@ -10,7 +10,9 @@ import { openrouterAdapter } from '../../src/engine/adapters/openrouter'
 import type { Adapter, AdapterRow, RawRecord } from '../../src/engine/adapters/types'
 import {
   AuditRow,
+  DEFAULT_DURATION_MAP,
   PricingSnapshot,
+  ScenarioResult,
   type FrozenSnapshot,
   type IdentityInputs,
   type RoutingAssumptions,
@@ -22,6 +24,7 @@ import {
 import { calculationIdentity } from '../../src/engine/identity'
 import { femtoToExactUsd, usdToFemto } from '../../src/engine/money'
 import { createPricingEngine } from '../../src/engine/pricing'
+import { createScenario } from '../../src/engine/savings'
 
 const ROOT = join(__dirname, '..', '..')
 const worked = JSON.parse(readFileSync(join(ROOT, 'fixtures', 'worked-examples.json'), 'utf8')) as {
@@ -154,6 +157,64 @@ describe('pricing properties', () => {
         }
       }),
       { numRuns: 100 },
+    )
+  })
+})
+
+/** Snapshot keys of MODELS, the models a scenario can target. */
+const KEYS = MODELS.filter((m) => Object.hasOwn(snapshot.models, m))
+const shareArb = fc.nat({ max: 1_000_000 }).map((n) => femtoToExactUsd(BigInt(n) * 10n ** 9n))
+
+describe('savings properties', () => {
+  it('routing to the logged model with neutral assumptions gives a scenario equal to the list price and savings of exactly 0', () => {
+    fc.assert(
+      fc.property(fc.array(rowArb, { minLength: 0, maxLength: 40 }), fc.constantFrom(...KEYS), shareArb, fc.boolean(), fc.nat({ max: 3 }), (rows, model, share, passOne, split) => {
+        const priced = rows.map((r, i) => engine.price({ ...r, rowIndex: i }))
+        const s = createScenario({
+          snapshot,
+          snapshotMeta: meta,
+          baselineKey: null,
+          durationMap: DEFAULT_DURATION_MAP,
+          routing: {
+            sourceModels: [model],
+            inputBands: [],
+            targetModel: model,
+            eligibleShare: share,
+            outputLengthRatio: '1',
+            tokenizerRatio: '1',
+            retryFallbackRate: '0',
+            routingOverheadTokens: 0,
+            calibrationPassRate: passOne ? '1' : null,
+          },
+        })
+        const cut = Math.min(split * 10, priced.length)
+        s.add(priced.slice(0, cut))
+        s.add(priced.slice(cut))
+        const r = s.result(0)
+        expect(ScenarioResult.safeParse(r).success).toBe(true)
+        expect(r.routing!.scenario.exactUsd).toBe(r.listOriginal.exactUsd)
+        expect(r.routing!.savings.exactUsd).toBe('0')
+        expect(r.routing!.savings.displayUsd).toBe('$0.000000')
+        expect(r.routing!.targetRateFallbackRows).toBe(0)
+        expect(r.rowsCompared + r.rowsLeftOut.reduce((n, x) => n + x.rows, 0)).toBe(rows.length)
+      }),
+      { numRuns: 150 },
+    )
+  })
+
+  it('a baseline at the logged model gives a difference of exactly 0', () => {
+    fc.assert(
+      fc.property(fc.array(rowArb, { minLength: 0, maxLength: 40 }), fc.constantFrom(...KEYS), (rows, model) => {
+        const s = createScenario({ snapshot, snapshotMeta: meta, baselineKey: model, routing: null, durationMap: DEFAULT_DURATION_MAP })
+        s.add(rows.map((r, i) => engine.price({ ...r, rowIndex: i, modelLogged: model })))
+        const r = s.result(0)
+        expect(r.baseline!.rowsNotPriced).toBe(0)
+        expect(r.baseline!.rowsPriced).toBe(r.rowsCompared)
+        expect(r.baseline!.comparedOriginal.exactUsd).toBe(r.listOriginal.exactUsd)
+        expect(r.baseline!.value.exactUsd).toBe(r.listOriginal.exactUsd)
+        expect(r.baseline!.difference).toEqual({ exactUsd: '0', displayUsd: '$0.000000' })
+      }),
+      { numRuns: 150 },
     )
   })
 })

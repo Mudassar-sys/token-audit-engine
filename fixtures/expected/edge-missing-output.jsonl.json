@@ -1,0 +1,54 @@
+[
+  {
+    "tokens": {
+      "uncachedInput": 1000,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 0,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "cacheWrite",
+      "output",
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": "standard",
+    "modelLogged": "gpt-4o",
+    "reported": null
+  },
+  {
+    "tokens": {
+      "uncachedInput": 1000,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 0,
+      "reasoning": 0
+    },
+    "notMeasured": [
+      "cacheWrite"
+    ],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": "standard",
+    "modelLogged": "gpt-4o",
+    "reported": null
+  }
+]

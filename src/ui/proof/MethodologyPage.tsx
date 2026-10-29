@@ -77,6 +77,34 @@ export function MethodologyPage() {
         </li>
       </ul>
 
+      <h3>Missing billed tokens</h3>
+      <p>
+        A call is billed for input, and for output unless it is an embedding. When the source leaves one of these out, the row is never read as zero tokens. A row
+        with a logged charge keeps the charge as its value, and its token estimate is marked incomplete. Any other row is Unresolved: it shows the subtotal of the
+        classes present, labelled Estimated, and that subtotal is not counted in totals. A count of 0 that the source states is measured, so it stays a valid
+        zero.
+      </p>
+
+      <h3>Savings modeller</h3>
+      <p>
+        The modeller reads every stored row in the worker and reprices it through the same row pricer the import used, with the audit's own snapshot. The list
+        price of each row is that row priced again without its logged charge. Rows that are not counted, malformed, Unresolved, Not priced or with an incomplete
+        token estimate are left out of both sides and listed with their reason. Logged charges are compared with list price on their own line and never count as
+        savings.
+      </p>
+
+      <h3>Exports</h3>
+      <p>
+        The row CSV is written by the worker. Where the browser offers a save dialog, the rows stream straight into the chosen file, batch by batch. Elsewhere the
+        worker builds the file in memory from parts of 8 MiB and the page downloads it. On the test machine (8 cores, 16 GB memory, Chrome 156) this fallback
+        completed every size tried, the largest a 4,122,448,689 byte export of 4,826,541 rows. Larger exports were not tried, and other devices can fail sooner, so
+        no general memory bound is claimed for the fallback.
+      </p>
+      <p>
+        The JSON report holds the summary, the capped breakdowns and the savings result. It never includes rows, so its size does not grow with the number of
+        rows.
+      </p>
+
       <h3>Pricing snapshot</h3>
       <p>
         Prices come from a dated snapshot of the LiteLLM model price registry, stored with this site and checked against its SHA-256 before use. Rates are kept as
@@ -87,7 +115,7 @@ export function MethodologyPage() {
       <h3>What this demo does not establish</h3>
       <p>Fit to a specific company's exports is proven only when its sample logs run through it.</p>
       <p>
-        The savings modeller reprices logged tokens under assumptions you supply. It does not measure the quality of another model, and the baseline never ran.
+        The savings modeller reprices logged rows under assumptions you supply. It does not measure the quality of another model, and the baseline never ran.
       </p>
     </section>
   )

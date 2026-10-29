@@ -1,8 +1,10 @@
 import { readFileSync } from 'node:fs'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import type { AggregateBucket, AuditRow } from '../../src/engine/contracts'
 import { EXCLUDED_HEADING, PARTIAL_TOTAL, UNRESOLVED_VALUE, bucketIsPartial, bucketValue, excludedGroups, loggedValue, rowValueText } from '../../src/ui/audit/display'
 import { RowPageCache } from '../../src/ui/audit/rowPages'
+import { loadFrozenSnapshot, sha256HexOf } from '../../src/ui/pricing'
+import { TEST_META, TEST_SNAPSHOT } from './helpers/testSnapshot'
 import { CONTENT_SECURITY_POLICY, SECURITY_HEADERS, cspDirectives } from '../../src/ui/proof/policy'
 
 function bucket(over: Partial<AggregateBucket>): AggregateBucket {
@@ -78,17 +80,58 @@ describe('breakdown values', () => {
   })
 })
 
-describe('savings logged value', () => {
-  it('is a partial total when groups with Not priced or Unresolved rows are left out', () => {
+describe('savings list price', () => {
+  it('is a partial total when rows were left out of the comparison', () => {
     expect(loggedValue({ displayUsd: '$0.002250' }, [])).toEqual({ text: '$0.002250', partial: false })
-    expect(loggedValue({ displayUsd: '$0.002250' }, [{ model: 'unlisted-model-x', band: '<1k' }])).toEqual({ text: '$0.002250', partial: true })
+    expect(loggedValue({ displayUsd: '$0.002250' }, [{ reason: 'Not priced', rows: 0 }])).toEqual({ text: '$0.002250', partial: false })
+    expect(loggedValue({ displayUsd: '$0.002250' }, [{ reason: 'Not priced', rows: 2 }])).toEqual({ text: '$0.002250', partial: true })
   })
 
-  it('the savings panel marks both logged values', () => {
+  it('the savings panel runs in the worker and shows the engine figures as they are', () => {
     const panel = src('src/ui/audit/SavingsPanel.tsx')
-    expect(panel).toContain('<LoggedValue amount={value.baseline.actual} skipped={value.baseline.skipped} />')
-    expect(panel).toContain('<LoggedValue amount={value.routingResult.original} skipped={value.routingResult.skipped} />')
+    expect(panel).toContain('client.scenario(')
+    expect(panel).toContain('loadFrozenSnapshot(summary.snapshot, pricing)')
+    expect(panel).not.toMatch(/createPricingEngine|createScenario|modelBaseline|modelRouting/)
+    expect(panel).toContain('{result.routing.savings.displayUsd}')
+    expect(panel).toContain('{result.baseline.difference.displayUsd}')
+    expect(panel).toContain('{result.loggedVersusList.label}')
     expect(panel).toContain('{PARTIAL_TOTAL}')
+    expect(panel).toContain('{ASSUMPTION_LABEL}')
+  })
+
+  it('the JSON report carries the same scenario result object', () => {
+    const page = src('src/ui/audit/AuditPage.tsx')
+    expect(page).toContain('buildReport(summary, identityInputs, new Date().toISOString(), savings.result ?? null)')
+    expect(page).toContain('durationMap: savings.inputs.durationMap')
+  })
+})
+
+describe('frozen snapshot for the savings model', () => {
+  const bytes = new TextEncoder().encode(JSON.stringify(TEST_SNAPSHOT))
+  const sha = sha256HexOf(bytes)
+  const loaded = { snapshot: TEST_SNAPSHOT, meta: { ...TEST_META, sha256: sha } }
+
+  it("uses the loaded snapshot when its SHA-256 is the audit's, without a fetch", async () => {
+    const fetchImpl = vi.fn()
+    await expect(loadFrozenSnapshot({ file: 'x.json', sha256: sha }, loaded, fetchImpl as unknown as typeof fetch)).resolves.toBe(TEST_SNAPSHOT)
+    expect(fetchImpl).not.toHaveBeenCalled()
+  })
+
+  it("fetches the audit's own file when the loaded snapshot differs, and checks its SHA-256", async () => {
+    const urls: string[] = []
+    const fetchImpl = (async (url: string) => {
+      urls.push(url)
+      return new Response(bytes)
+    }) as unknown as typeof fetch
+    const other = { ...loaded, meta: { ...loaded.meta, sha256: 'f'.repeat(64) } }
+    const got = await loadFrozenSnapshot({ file: '2026-01-01-0123abcd.json', sha256: sha }, other, fetchImpl)
+    expect(got).toEqual(TEST_SNAPSHOT)
+    expect(urls).toEqual(['/pricing/2026-01-01-0123abcd.json'])
+  })
+
+  it('refuses a file whose bytes do not match the audit', async () => {
+    const fetchImpl = (async () => new Response(bytes)) as unknown as typeof fetch
+    await expect(loadFrozenSnapshot({ file: '2026-01-02-0123abcd.json', sha256: 'e'.repeat(64) }, null, fetchImpl)).rejects.toThrow(/does not match the audit/)
   })
 })
 

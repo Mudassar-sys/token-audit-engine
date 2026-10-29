@@ -290,6 +290,61 @@
             },
             "engineVersion": {
               "type": "string"
+            },
+            "durationMap": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "5m": {
+                      "type": "string",
+                      "enum": [
+                        "5m",
+                        "1h",
+                        "30m",
+                        "12h"
+                      ]
+                    },
+                    "1h": {
+                      "type": "string",
+                      "enum": [
+                        "5m",
+                        "1h",
+                        "30m",
+                        "12h"
+                      ]
+                    },
+                    "30m": {
+                      "type": "string",
+                      "enum": [
+                        "5m",
+                        "1h",
+                        "30m",
+                        "12h"
+                      ]
+                    },
+                    "12h": {
+                      "type": "string",
+                      "enum": [
+                        "5m",
+                        "1h",
+                        "30m",
+                        "12h"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "5m",
+                    "1h",
+                    "30m",
+                    "12h"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "null"
+                }
+              ]
             }
           },
           "required": [

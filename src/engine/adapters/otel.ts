@@ -12,6 +12,8 @@ import { RowNotes, readServiceTier } from './openaiChat'
 
 /** Operations whose usage is a model call and is counted. */
 const INFERENCE_OPS = new Set(['chat', 'text_completion', 'generate_content', 'embeddings'])
+/** The embeddings operation is billed for input only, so no output is expected. */
+const EMBEDDINGS_OP = 'embeddings'
 
 const K = {
   input: 'gen_ai.usage.input_tokens',
@@ -200,6 +202,7 @@ function spanRow(s: SpanEntry, u: SpanUsage, variant: VariantId): AdapterRow {
   let cacheRead = read
   if (u.input === null) {
     notMeasured.push('uncachedInput')
+    mapping.push(`uncachedInput = not measured (${K.input} absent)`)
   } else if (read + write > u.input) {
     flags.push('cache_exceeds_input')
     unresolvedReason ??= 'cache tokens exceed input tokens; no documented producer rule'
@@ -235,6 +238,7 @@ function spanRow(s: SpanEntry, u: SpanUsage, variant: VariantId): AdapterRow {
   let output = 0
   if (u.output === null) {
     notMeasured.push('output')
+    mapping.push(`output = not measured (${K.output} absent)`)
   } else {
     output = u.output - imageOut - audioOut
     mapping.push(`output = ${u.outputKey}${imageOut + audioOut > 0 ? ' - image and audio output tokens (excluded)' : ''}`)
@@ -268,6 +272,8 @@ function spanRow(s: SpanEntry, u: SpanUsage, variant: VariantId): AdapterRow {
   }
 
   if (s.model === null) flags.push('model_missing')
+  const embedding = s.op === EMBEDDINGS_OP
+  if (embedding) mapping.push('operation = embedding (gen_ai.operation.name "embeddings"), billed for input only')
 
   return {
     timestamp: safeIso(s.start),
@@ -286,6 +292,7 @@ function spanRow(s: SpanEntry, u: SpanUsage, variant: VariantId): AdapterRow {
     unresolvedReason,
     counted: true,
     requests: 1,
+    ...(embedding ? { operation: 'embedding' as const } : {}),
   }
 }
 
@@ -535,7 +542,7 @@ function scoreOtlp(sample: RawRecord): { score: number; reason: string } {
 export const otelAdapter: Adapter = {
   source: 'G',
   id: 'otel-genai-spans',
-  version: '1.0.0',
+  version: '1.1.0',
   variants: ['G-otlp', 'G-otlp-jsonl'],
   label: 'OpenTelemetry GenAI spans',
   score: scoreOtlp,

@@ -55,12 +55,14 @@ const CASES: { file: string; variant: VariantId; adapter: Adapter; provider: (ro
   { file: 'a-openai-chat.jsonl', variant: 'A-jsonl', adapter: openaiChatAdapter, provider: () => 'openai' },
   { file: 'edge-mixed-models.jsonl', variant: 'A-jsonl', adapter: openaiChatAdapter, provider: () => 'openai' },
   { file: 'zero-not-priced.jsonl', variant: 'A-jsonl', adapter: openaiChatAdapter, provider: () => 'openai' },
+  { file: 'edge-missing-output.jsonl', variant: 'A-jsonl', adapter: openaiChatAdapter, provider: () => 'openai' },
   { file: 'b-openai-responses.json', variant: 'B-json', adapter: openaiResponsesAdapter, provider: () => 'openai' },
   { file: 'b-openai-responses.jsonl', variant: 'B-jsonl', adapter: openaiResponsesAdapter, provider: () => 'openai' },
   { file: 'c-openai-usage-page.json', variant: 'C-page', adapter: openaiUsageAdapter, provider: () => 'openai' },
   { file: 'e-openrouter.json', variant: 'E-json', adapter: openrouterAdapter, provider: (r) => openrouterProvider(r.modelLogged) },
   { file: 'e-openrouter.jsonl', variant: 'E-jsonl', adapter: openrouterAdapter, provider: (r) => openrouterProvider(r.modelLogged) },
   { file: 'zero-valid-reported-charge.jsonl', variant: 'E-jsonl', adapter: openrouterAdapter, provider: () => 'meta-llama' },
+  { file: 'edge-missing-output-charge.jsonl', variant: 'E-jsonl', adapter: openrouterAdapter, provider: () => 'openai' },
 ]
 
 const markers = JSON.parse(readText('markers.json')) as Record<string, string>
@@ -566,6 +568,18 @@ describe('score() on samples', () => {
     expect(best(first('e-openrouter.json', 'E-json'))).toBe('E')
     expect(best(first('e-openrouter.jsonl', 'E-jsonl'))).toBe('E')
     expect(best(first('zero-valid-reported-charge.jsonl', 'E-jsonl'))).toBe('E')
+    expect(best(first('edge-missing-output.jsonl', 'A-jsonl'))).toBe('A')
+    expect(best(first('edge-missing-output-charge.jsonl', 'E-jsonl'))).toBe('E')
+  })
+
+  it('a stated chat completion without completion_tokens is still a chat completion; a bare one is not', () => {
+    const noOutput = json({ object: 'chat.completion', model: 'gpt-4o', usage: { prompt_tokens: 1000 } })
+    expect(openaiChatAdapter.score(noOutput).score).toBe(0.95)
+    const routed = json({ id: 'gen-1', object: 'chat.completion', model: 'openai/gpt-4o', usage: { prompt_tokens: 1000, cost: 0.0031 } })
+    expect(openrouterAdapter.score(routed).score).toBe(0.95)
+    const bare = json({ model: 'gpt-4o', usage: { prompt_tokens: 1000 } })
+    expect(openaiChatAdapter.score(bare).score).toBe(0)
+    expect(openaiChatAdapter.score(bare).reason).toBe('usage has no completion_tokens, so it is not chat completion usage')
   })
 
   it('scores stay in 0..1 with a reason', () => {
