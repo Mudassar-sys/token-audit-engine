@@ -1,7 +1,7 @@
 {
   "results": [
     {
-      "recordedAt": "2026-10-29T14:06:50.334Z",
+      "recordedAt": "2026-10-29T14:51:21.398Z",
       "engineVersion": "1.0.0",
       "cpuCores": 8,
       "memoryClass": 16,
@@ -18,14 +18,14 @@
         "anthropic": 108692,
         "gemini": 36224
       },
-      "sampleGenerationMs": 4529,
-      "totalMs": 52800,
-      "rowsPerSecond": 7617,
+      "sampleGenerationMs": 3727,
+      "totalMs": 47489,
+      "rowsPerSecond": 8469,
       "importedRows": 402191,
-      "peakMemory": 76024815,
-      "cancelMs": 264,
-      "partialDeleteMs": 1646,
-      "cancelTotalMs": 2122,
+      "peakMemory": 77045316,
+      "cancelMs": 53,
+      "partialDeleteMs": 51,
+      "cancelTotalMs": 309,
       "cancelAtBytes": 104857600,
       "partialRowsDeleted": true,
       "longTasks": {
@@ -33,7 +33,8 @@
         "totalMs": 0,
         "maxMs": 0
       },
-      "site": "https://token-audit-engine.vercel.app"
+      "site": "https://token-audit-engine.vercel.app",
+      "profile": "on-disk browser profile"
     }
   ]
 }
