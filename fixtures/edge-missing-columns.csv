@@ -1,0 +1,7 @@
+event_time,vendor,model_name,input_tok,cached_tok,cache_write_tok,output_tok,reasoning_tok,service_level,billed_usd,note
+2026-10-20T08:00:00Z,openai,gpt-4o,2006,1920,,300,,standard,,ZQXMARK-edge-missing-columns-5cd7f296
+2026-10-20T08:05:00Z,openai,gpt-4o-mini,1500,,,200,,,,no cache columns
+,anthropic,,900,0,0,,,,,"no time, model or output"
+2026-10-20T08:15:00Z,anthropic,claude-haiku-4-5,,,,150,,,0.0012,charge only
+2026-10-20T08:20:00Z,openai,gpt-4o,1000,0
+2026-10-20T08:25:00Z,,gpt-4o,700,0,0,90,0,Standard,,no vendor

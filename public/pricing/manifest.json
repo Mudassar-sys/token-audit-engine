@@ -1,0 +1,14 @@
+{
+  "latest": "2026-10-29-aa992e3f.json",
+  "snapshots": [
+    {
+      "file": "2026-10-29-aa992e3f.json",
+      "date": "2026-10-29",
+      "commit": "cd42694b48e30ab74ba6e24e83aabf4b40c041b5",
+      "sha256": "aa992e3f1c115dfcdb2b65c4f9fd6ee47dee4475c6f7fbfe1ffe4553095d4698",
+      "sourceUrl": "https://raw.githubusercontent.com/BerriAI/litellm/cd42694b48e30ab74ba6e24e83aabf4b40c041b5/model_prices_and_context_window.json",
+      "fetchedAt": "2026-10-29T12:59:05.057Z",
+      "models": 4459
+    }
+  ]
+}

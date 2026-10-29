@@ -1,0 +1,128 @@
+[
+  {
+    "tokens": {
+      "uncachedInput": 86,
+      "cacheRead": 1920,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 300,
+      "reasoning": 0
+    },
+    "notMeasured": [
+      "cacheWrite"
+    ],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": "standard",
+    "modelLogged": "gpt-4o-2024-08-06",
+    "reported": null
+  },
+  {
+    "tokens": {
+      "uncachedInput": 1500,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 2200,
+      "reasoning": 1600
+    },
+    "notMeasured": [
+      "cacheWrite"
+    ],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": "standard",
+    "modelLogged": "o4-mini",
+    "reported": null
+  },
+  {
+    "tokens": {
+      "uncachedInput": 2000,
+      "cacheRead": 2000,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 5000,
+        "12h": 0
+      },
+      "output": 400,
+      "reasoning": 120
+    },
+    "notMeasured": [],
+    "excluded": {},
+    "flags": [
+      "duration_assumed"
+    ],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": "standard",
+    "modelLogged": "gpt-6.1-sol",
+    "reported": null
+  },
+  {
+    "tokens": {
+      "uncachedInput": 300,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 80,
+      "reasoning": 0
+    },
+    "notMeasured": [
+      "cacheWrite"
+    ],
+    "excluded": {
+      "input_audio": 900,
+      "output_audio": 420
+    },
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": "standard",
+    "modelLogged": "gpt-4o-audio-preview",
+    "reported": null
+  },
+  {
+    "tokens": {
+      "uncachedInput": 3000,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 900,
+      "reasoning": 640
+    },
+    "notMeasured": [],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": "flex",
+    "modelLogged": "o3",
+    "reported": null
+  }
+]

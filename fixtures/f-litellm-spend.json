@@ -1,0 +1,133 @@
+[
+  {
+    "call_type": "acompletion",
+    "api_key": "88dc28d0f030c55ed4ab77ed8faf098196cb1c05df778539800c9f1243fe6b4b",
+    "completionStartTime": "",
+    "model_id": "",
+    "api_base": "",
+    "user": "user-7f3a",
+    "cache_hit": "False",
+    "cache_key": "",
+    "request_tags": [],
+    "team_id": "team-2b9c",
+    "end_user": "",
+    "requester_ip_address": "",
+    "messages": {},
+    "response": {},
+    "session_id": "",
+    "status": "success",
+    "request_id": "ZQXMARK-f-litellm-spend-0545dfc7",
+    "spend": 0.00243,
+    "prompt_tokens": 1800,
+    "completion_tokens": 120,
+    "startTime": "2026-10-04T12:00:00.000Z",
+    "endTime": "2026-10-04T12:00:02.000Z",
+    "model": "claude-haiku-4-5",
+    "custom_llm_provider": "anthropic",
+    "metadata": {
+      "additional_usage_values": {
+        "cache_read_input_tokens": 1000,
+        "cache_creation_input_tokens": 300
+      }
+    },
+    "total_tokens": 1920,
+    "model_group": "claude-haiku-4-5"
+  },
+  {
+    "call_type": "acompletion",
+    "api_key": "88dc28d0f030c55ed4ab77ed8faf098196cb1c05df778539800c9f1243fe6b4b",
+    "completionStartTime": "",
+    "model_id": "",
+    "api_base": "",
+    "user": "user-7f3a",
+    "cache_hit": "False",
+    "cache_key": "",
+    "request_tags": [],
+    "team_id": "team-2b9c",
+    "end_user": "",
+    "requester_ip_address": "",
+    "messages": {},
+    "response": {},
+    "session_id": "",
+    "status": "success",
+    "request_id": "chatcmpl-j1",
+    "spend": 0.0035,
+    "prompt_tokens": 1000,
+    "completion_tokens": 100,
+    "startTime": "2026-10-04T12:05:00.000Z",
+    "endTime": "2026-10-04T12:05:01.000Z",
+    "model": "gpt-4o",
+    "custom_llm_provider": "openai",
+    "metadata": {
+      "usage_object": {
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      }
+    },
+    "total_tokens": 1100,
+    "model_group": "gpt-4o"
+  },
+  {
+    "call_type": "acompletion",
+    "api_key": "88dc28d0f030c55ed4ab77ed8faf098196cb1c05df778539800c9f1243fe6b4b",
+    "completionStartTime": "",
+    "model_id": "",
+    "api_base": "",
+    "user": "user-7f3a",
+    "cache_hit": "False",
+    "cache_key": "",
+    "request_tags": [],
+    "team_id": "team-2b9c",
+    "end_user": "",
+    "requester_ip_address": "",
+    "messages": {},
+    "response": {},
+    "session_id": "",
+    "status": "failure",
+    "request_id": "chatcmpl-j2",
+    "spend": 0,
+    "prompt_tokens": 0,
+    "completion_tokens": 0,
+    "startTime": "2026-10-04T12:06:00.000Z",
+    "endTime": "2026-10-04T12:06:00.400Z",
+    "model": "gpt-4o",
+    "custom_llm_provider": "openai",
+    "metadata": {
+      "error_information": {
+        "error_code": "429"
+      }
+    },
+    "total_tokens": 0,
+    "model_group": "gpt-4o"
+  },
+  {
+    "call_type": "acompletion",
+    "api_key": "88dc28d0f030c55ed4ab77ed8faf098196cb1c05df778539800c9f1243fe6b4b",
+    "completionStartTime": "",
+    "model_id": "",
+    "api_base": "",
+    "user": "user-7f3a",
+    "cache_hit": "False",
+    "cache_key": "",
+    "request_tags": [],
+    "team_id": "team-2b9c",
+    "end_user": "",
+    "requester_ip_address": "",
+    "messages": {},
+    "response": {},
+    "session_id": "",
+    "status": "success",
+    "request_id": "chatcmpl-j3",
+    "spend": 0.00011,
+    "prompt_tokens": 600,
+    "completion_tokens": 30,
+    "startTime": "2026-10-04T12:10:00.000Z",
+    "endTime": "2026-10-04T12:10:00.900Z",
+    "model": "",
+    "model_group": "default-route",
+    "custom_llm_provider": "",
+    "metadata": {},
+    "total_tokens": 630
+  }
+]

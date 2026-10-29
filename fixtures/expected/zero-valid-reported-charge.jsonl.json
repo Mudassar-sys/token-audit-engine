@@ -1,0 +1,60 @@
+[
+  {
+    "tokens": {
+      "uncachedInput": 1250,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 340,
+      "reasoning": 0
+    },
+    "notMeasured": [
+      "cacheWrite"
+    ],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": null,
+    "modelLogged": "meta-llama/llama-3.3-70b-instruct:free",
+    "reported": {
+      "amountUsd": "0",
+      "field": "usage.cost",
+      "kind": "charge"
+    }
+  },
+  {
+    "tokens": {
+      "uncachedInput": 610,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 95,
+      "reasoning": 0
+    },
+    "notMeasured": [
+      "cacheWrite"
+    ],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": null,
+    "modelLogged": "meta-llama/llama-3.3-70b-instruct:free",
+    "reported": {
+      "amountUsd": "0",
+      "field": "usage.cost",
+      "kind": "charge"
+    }
+  }
+]

@@ -1,0 +1,252 @@
+[
+  {
+    "tokens": {
+      "uncachedInput": 3000,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 700,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "cacheRead",
+      "cacheWrite",
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [
+      "aggregate_span"
+    ],
+    "unresolvedReason": null,
+    "counted": false,
+    "requests": 1,
+    "tierStated": null,
+    "modelLogged": "claude-sonnet-4-5-20250929",
+    "reported": null
+  },
+  {
+    "tokens": {
+      "uncachedInput": 300,
+      "cacheRead": 1200,
+      "cacheWrite": {
+        "5m": 300,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 400,
+      "reasoning": 120
+    },
+    "notMeasured": [],
+    "excluded": {},
+    "flags": [
+      "duration_assumed"
+    ],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": null,
+    "modelLogged": "claude-sonnet-4-5-20250929",
+    "reported": null
+  },
+  {
+    "tokens": {
+      "uncachedInput": 1000,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 200,
+        "12h": 0
+      },
+      "output": 300,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [
+      "duration_assumed"
+    ],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": null,
+    "modelLogged": "gpt-4o-2024-08-06",
+    "reported": null
+  },
+  {
+    "tokens": {
+      "uncachedInput": 900,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 150,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "cacheRead",
+      "cacheWrite",
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [
+      "overlaps_counted_child"
+    ],
+    "unresolvedReason": "overlaps a counted child span; review needed",
+    "counted": true,
+    "requests": 1,
+    "tierStated": null,
+    "modelLogged": "gpt-4o-mini",
+    "reported": null
+  },
+  {
+    "tokens": {
+      "uncachedInput": 900,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 150,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "cacheRead",
+      "cacheWrite",
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": null,
+    "modelLogged": "gpt-4o-mini-2024-07-18",
+    "reported": null
+  },
+  {
+    "tokens": {
+      "uncachedInput": 0,
+      "cacheRead": 150,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 20,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "cacheWrite",
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [
+      "cache_exceeds_input"
+    ],
+    "unresolvedReason": "cache tokens exceed input tokens; no documented producer rule",
+    "counted": true,
+    "requests": 1,
+    "tierStated": null,
+    "modelLogged": "gpt-4o",
+    "reported": null
+  },
+  {
+    "tokens": {
+      "uncachedInput": 512,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 0,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "cacheRead",
+      "cacheWrite",
+      "output",
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": null,
+    "modelLogged": "text-embedding-3-small",
+    "reported": null
+  },
+  {
+    "tokens": {
+      "uncachedInput": 5000,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 1000,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "cacheRead",
+      "cacheWrite",
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [
+      "model_missing",
+      "aggregate_span",
+      "aggregate_mismatch"
+    ],
+    "unresolvedReason": null,
+    "counted": false,
+    "requests": 1,
+    "tierStated": null,
+    "modelLogged": null,
+    "reported": null
+  },
+  {
+    "tokens": {
+      "uncachedInput": 3000,
+      "cacheRead": 1000,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 900,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "cacheWrite",
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": null,
+    "modelLogged": "claude-haiku-4-5",
+    "reported": null
+  }
+]

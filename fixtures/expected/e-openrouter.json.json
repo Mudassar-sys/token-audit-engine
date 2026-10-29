@@ -1,0 +1,145 @@
+[
+  {
+    "tokens": {
+      "uncachedInput": 94,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 100,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 2,
+      "reasoning": 0
+    },
+    "notMeasured": [],
+    "excluded": {},
+    "flags": [
+      "duration_assumed"
+    ],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": null,
+    "modelLogged": "anthropic/claude-sonnet-4.5",
+    "reported": {
+      "amountUsd": "19.95",
+      "field": "usage.cost + usage.cost_details.upstream_inference_cost",
+      "kind": "charge"
+    }
+  },
+  {
+    "tokens": {
+      "uncachedInput": 21,
+      "cacheRead": 10318,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 60,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": null,
+    "modelLogged": "openai/gpt-4o-mini",
+    "reported": null
+  },
+  {
+    "tokens": {
+      "uncachedInput": 10,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 4,
+      "reasoning": 0
+    },
+    "notMeasured": [
+      "cacheWrite"
+    ],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": null,
+    "modelLogged": "openai/gpt-4o",
+    "reported": {
+      "amountUsd": "0.00014",
+      "field": "usage.cost",
+      "kind": "charge"
+    }
+  },
+  {
+    "tokens": {
+      "uncachedInput": 420,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 180,
+      "reasoning": 0
+    },
+    "notMeasured": [
+      "cacheWrite"
+    ],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": null,
+    "modelLogged": "meta-llama/llama-3.3-70b-instruct:free",
+    "reported": {
+      "amountUsd": "0",
+      "field": "usage.cost",
+      "kind": "charge"
+    }
+  },
+  {
+    "tokens": {
+      "uncachedInput": 8,
+      "cacheRead": 2,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 15,
+      "reasoning": 5
+    },
+    "notMeasured": [
+      "cacheWrite"
+    ],
+    "excluded": {
+      "server_tool_calls": 2
+    },
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": null,
+    "modelLogged": "openai/o4-mini",
+    "reported": {
+      "amountUsd": "0.0012",
+      "field": "usage.cost",
+      "kind": "charge"
+    }
+  }
+]

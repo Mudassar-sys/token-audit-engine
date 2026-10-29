@@ -1,0 +1,177 @@
+[
+  {
+    "tokens": {
+      "uncachedInput": 3800,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 1200,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 300,
+      "reasoning": 0
+    },
+    "notMeasured": [],
+    "excluded": {},
+    "flags": [
+      "duration_assumed"
+    ],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": null,
+    "modelLogged": "google/gemini-2.5-flash",
+    "reported": {
+      "amountUsd": "0.0021",
+      "field": "usage.cost",
+      "kind": "charge"
+    }
+  },
+  {
+    "tokens": {
+      "uncachedInput": 1024,
+      "cacheRead": 1024,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 2048,
+        "12h": 0
+      },
+      "output": 256,
+      "reasoning": 0
+    },
+    "notMeasured": [],
+    "excluded": {},
+    "flags": [
+      "duration_assumed"
+    ],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": null,
+    "modelLogged": "openai/gpt-4o",
+    "reported": {
+      "amountUsd": "0.00512",
+      "field": "usage.cost",
+      "kind": "charge"
+    }
+  },
+  {
+    "tokens": {
+      "uncachedInput": 800,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 100,
+      "reasoning": 0
+    },
+    "notMeasured": [
+      "cacheWrite"
+    ],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": "BYOK request without usage.cost_details.upstream_inference_cost; the provider charge is not in the log",
+    "counted": true,
+    "requests": 1,
+    "tierStated": null,
+    "modelLogged": "anthropic/claude-haiku-4.5",
+    "reported": {
+      "amountUsd": "0.00004",
+      "field": "usage.cost",
+      "kind": "charge"
+    }
+  },
+  {
+    "tokens": {
+      "uncachedInput": 1500,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 400,
+      "reasoning": 0
+    },
+    "notMeasured": [
+      "cacheWrite"
+    ],
+    "excluded": {
+      "web_search_requests": 1
+    },
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": null,
+    "modelLogged": "openai/gpt-4o",
+    "reported": {
+      "amountUsd": "0.01775",
+      "field": "usage.cost",
+      "kind": "charge"
+    }
+  },
+  {
+    "tokens": {
+      "uncachedInput": 400,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 160,
+      "reasoning": 0
+    },
+    "notMeasured": [
+      "cacheWrite"
+    ],
+    "excluded": {
+      "input_audio": 300,
+      "output_audio": 100
+    },
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": null,
+    "modelLogged": "openai/gpt-4o-audio-preview",
+    "reported": {
+      "amountUsd": "0.0091",
+      "field": "usage.cost",
+      "kind": "charge"
+    }
+  },
+  {
+    "tokens": {
+      "uncachedInput": 0,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 0,
+      "reasoning": null
+    },
+    "notMeasured": [],
+    "excluded": {},
+    "flags": [
+      "malformed"
+    ],
+    "unresolvedReason": "Malformed: usage.completion_tokens not a non-negative integer",
+    "counted": true,
+    "requests": 1,
+    "tierStated": null,
+    "modelLogged": null,
+    "reported": null
+  }
+]

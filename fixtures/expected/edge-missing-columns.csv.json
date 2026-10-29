@@ -1,0 +1,163 @@
+[
+  {
+    "tokens": {
+      "uncachedInput": 86,
+      "cacheRead": 1920,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 300,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "cacheWrite",
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": "standard",
+    "modelLogged": "gpt-4o",
+    "reported": null
+  },
+  {
+    "tokens": {
+      "uncachedInput": 1500,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 200,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "cacheRead",
+      "cacheWrite",
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": null,
+    "modelLogged": "gpt-4o-mini",
+    "reported": null
+  },
+  {
+    "tokens": {
+      "uncachedInput": 900,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 0,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "output",
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [
+      "model_missing"
+    ],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": null,
+    "modelLogged": null,
+    "reported": null
+  },
+  {
+    "tokens": {
+      "uncachedInput": 0,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 150,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "uncachedInput",
+      "cacheRead",
+      "cacheWrite",
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": null,
+    "modelLogged": "claude-haiku-4-5",
+    "reported": {
+      "amountUsd": "0.0012",
+      "field": "billed_usd",
+      "kind": "charge"
+    }
+  },
+  {
+    "tokens": {
+      "uncachedInput": 0,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 0,
+      "reasoning": null
+    },
+    "notMeasured": [],
+    "excluded": {},
+    "flags": [
+      "malformed"
+    ],
+    "unresolvedReason": "Malformed: Line 6: TooFewFields: Too few fields: expected 11 fields but parsed 5",
+    "counted": true,
+    "requests": 1,
+    "tierStated": null,
+    "modelLogged": null,
+    "reported": null
+  },
+  {
+    "tokens": {
+      "uncachedInput": 700,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 90,
+      "reasoning": 0
+    },
+    "notMeasured": [],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": "standard",
+    "modelLogged": "gpt-4o",
+    "reported": null
+  }
+]

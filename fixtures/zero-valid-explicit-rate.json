@@ -1,0 +1,31 @@
+[
+  {
+    "call_type": "acompletion",
+    "api_key": "88dc28d0f030c55ed4ab77ed8faf098196cb1c05df778539800c9f1243fe6b4b",
+    "completionStartTime": "",
+    "model_id": "",
+    "api_base": "",
+    "user": "user-7f3a",
+    "cache_hit": "False",
+    "cache_key": "",
+    "request_tags": [],
+    "team_id": "team-2b9c",
+    "end_user": "",
+    "requester_ip_address": "",
+    "messages": {},
+    "response": {},
+    "session_id": "",
+    "status": "success",
+    "request_id": "ZQXMARK-zero-valid-explicit-rate-fe6ce480",
+    "spend": 0,
+    "prompt_tokens": 1200,
+    "completion_tokens": 300,
+    "startTime": "2026-10-08T10:00:00.000Z",
+    "endTime": "2026-10-08T10:00:02.000Z",
+    "model": "codestral/codestral-latest",
+    "custom_llm_provider": "codestral",
+    "metadata": {},
+    "total_tokens": 1500,
+    "model_group": "codestral/codestral-latest"
+  }
+]

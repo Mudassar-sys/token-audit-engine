@@ -1,0 +1,14 @@
+{
+  "timestamp": "event_time",
+  "provider": "vendor",
+  "model": "model_name",
+  "inputTokens": "input_tok",
+  "inputIncludesCached": true,
+  "cacheRead": "cached_tok",
+  "cacheWrite": "cache_write_tok",
+  "cacheWriteDuration": null,
+  "outputTokens": "output_tok",
+  "reasoningTokens": "reasoning_tok",
+  "tier": "service_level",
+  "reportedCharge": "billed_usd"
+}

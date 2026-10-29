@@ -1,0 +1,43 @@
+{
+  "snapshot": {
+    "file": "2026-10-29-aa992e3f.json",
+    "date": "2026-10-29",
+    "sha256": "aa992e3f1c115dfcdb2b65c4f9fd6ee47dee4475c6f7fbfe1ffe4553095d4698",
+    "commit": "cd42694b48e30ab74ba6e24e83aabf4b40c041b5",
+    "sourceUrl": "https://raw.githubusercontent.com/BerriAI/litellm/cd42694b48e30ab74ba6e24e83aabf4b40c041b5/model_prices_and_context_window.json"
+  },
+  "examples": [
+    {
+      "name": "Chat Completions cached call",
+      "modelKey": "gpt-4o",
+      "source": { "prompt_tokens": 2006, "cached_tokens": 1920, "completion_tokens": 300 },
+      "tokens": { "uncachedInput": 86, "cacheRead": 1920, "cacheWrite": { "5m": 0, "1h": 0, "30m": 0, "12h": 0 }, "output": 300, "reasoning": null },
+      "tierStated": "standard",
+      "expectedUsd": "0.005615",
+      "expectedDisplay": "$0.005615",
+      "formula": "86 x $0.0000025 + 1,920 x $0.00000125 + 300 x $0.00001 = $0.005615",
+      "neverUsd": "0.010415"
+    },
+    {
+      "name": "Messages call with 5 minute and 1 hour cache writes",
+      "modelKey": "claude-sonnet-4-5-20250929",
+      "source": { "input_tokens": 2048, "cache_read_input_tokens": 1800, "ephemeral_5m_input_tokens": 148, "ephemeral_1h_input_tokens": 100, "output_tokens": 503 },
+      "tokens": { "uncachedInput": 2048, "cacheRead": 1800, "cacheWrite": { "5m": 148, "1h": 100, "30m": 0, "12h": 0 }, "output": 503, "reasoning": null },
+      "tierStated": "standard",
+      "expectedUsd": "0.015384",
+      "expectedDisplay": "$0.015384",
+      "formula": "2,048 x $0.000003 + 1,800 x $0.0000003 + 148 x $0.00000375 + 100 x $0.000006 + 503 x $0.000015 = $0.015384"
+    },
+    {
+      "name": "Responses call with 30 minute and 12 hour cache writes",
+      "modelKey": "gpt-6.1-sol",
+      "source": { "input_tokens": 12000, "cached_tokens": 4000, "cache_write_tokens": 7000, "ttl_30m_tokens": 3000, "ttl_12h_tokens": 4000, "output_tokens": 500 },
+      "tokens": { "uncachedInput": 1000, "cacheRead": 4000, "cacheWrite": { "5m": 0, "1h": 0, "30m": 3000, "12h": 4000 }, "output": 500, "reasoning": null },
+      "tierStated": "standard",
+      "expectedUsd": "0.0349",
+      "expectedDisplay": "$0.034900",
+      "formula": "1,000 x $0.000002 + 4,000 x $0.0000001 + 3,000 x $0.0000025 + 4,000 x $0.000005 + 500 x $0.00001 = $0.0349",
+      "neverUsd": "0.0489"
+    }
+  ]
+}

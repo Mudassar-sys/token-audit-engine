@@ -1,0 +1,894 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "Report.schema.json",
+  "title": "Report",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "const": "Token cost audit report"
+    },
+    "engineVersion": {
+      "type": "string"
+    },
+    "schemaVersion": {
+      "type": "integer",
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+    },
+    "exportedAt": {
+      "type": "string"
+    },
+    "calculationIdentity": {
+      "type": "object",
+      "properties": {
+        "sha256": {
+          "type": "string"
+        },
+        "inputs": {
+          "type": "object",
+          "properties": {
+            "inputFileSha256": {
+              "type": "string"
+            },
+            "mapping": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "timestamp": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "provider": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "model": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "inputTokens": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "inputIncludesCached": {
+                      "type": "boolean"
+                    },
+                    "cacheRead": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "cacheWrite": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "cacheWriteDuration": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "5m",
+                            "1h",
+                            "30m",
+                            "12h"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "outputTokens": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "reasoningTokens": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "tier": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "reportedCharge": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "timestamp",
+                    "provider",
+                    "model",
+                    "inputTokens",
+                    "inputIncludesCached",
+                    "cacheRead",
+                    "cacheWrite",
+                    "cacheWriteDuration",
+                    "outputTokens",
+                    "reasoningTokens",
+                    "tier",
+                    "reportedCharge"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "adapters": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "version": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "version"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "schemaVersion": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            },
+            "snapshotSha256": {
+              "type": "string"
+            },
+            "baselineModel": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "routing": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "sourceModels": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "inputBands": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "targetModel": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "eligibleShare": {
+                      "type": "string",
+                      "pattern": "^-?\\d+(\\.\\d+)?$"
+                    },
+                    "outputLengthRatio": {
+                      "type": "string",
+                      "pattern": "^-?\\d+(\\.\\d+)?$"
+                    },
+                    "tokenizerRatio": {
+                      "type": "string",
+                      "pattern": "^-?\\d+(\\.\\d+)?$"
+                    },
+                    "retryFallbackRate": {
+                      "type": "string",
+                      "pattern": "^-?\\d+(\\.\\d+)?$"
+                    },
+                    "routingOverheadTokens": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "calibrationPassRate": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "pattern": "^-?\\d+(\\.\\d+)?$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "sourceModels",
+                    "inputBands",
+                    "targetModel",
+                    "eligibleShare",
+                    "outputLengthRatio",
+                    "tokenizerRatio",
+                    "retryFallbackRate",
+                    "routingOverheadTokens",
+                    "calibrationPassRate"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "priceOverrides": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "model": {
+                    "type": "string"
+                  },
+                  "rateKey": {
+                    "type": "string"
+                  },
+                  "rateUsdPerToken": {
+                    "type": "string",
+                    "pattern": "^-?\\d+(\\.\\d+)?$"
+                  }
+                },
+                "required": [
+                  "model",
+                  "rateKey",
+                  "rateUsdPerToken"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "reportSettings": {
+              "type": "object",
+              "properties": {
+                "displayDecimals": {
+                  "type": "integer",
+                  "minimum": 2,
+                  "maximum": 15
+                },
+                "aggregateKeyCap": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "displayDecimals",
+                "aggregateKeyCap"
+              ],
+              "additionalProperties": false
+            },
+            "engineVersion": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "inputFileSha256",
+            "mapping",
+            "adapters",
+            "schemaVersion",
+            "snapshotSha256",
+            "baselineModel",
+            "routing",
+            "priceOverrides",
+            "reportSettings",
+            "engineVersion"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "sha256",
+        "inputs"
+      ],
+      "additionalProperties": false
+    },
+    "provenance": {
+      "type": "object",
+      "properties": {
+        "fileName": {
+          "type": "string"
+        },
+        "fileBytes": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "variant": {
+          "type": "string",
+          "enum": [
+            "A-json",
+            "A-jsonl",
+            "B-json",
+            "B-jsonl",
+            "C-page",
+            "D-json",
+            "D-jsonl",
+            "E-json",
+            "E-jsonl",
+            "F-csv",
+            "F-json",
+            "G-otlp",
+            "G-otlp-jsonl",
+            "H-csv"
+          ]
+        },
+        "detection": {
+          "type": "object",
+          "properties": {
+            "variant": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "A-json",
+                    "A-jsonl",
+                    "B-json",
+                    "B-jsonl",
+                    "C-page",
+                    "D-json",
+                    "D-jsonl",
+                    "E-json",
+                    "E-jsonl",
+                    "F-csv",
+                    "F-json",
+                    "G-otlp",
+                    "G-otlp-jsonl",
+                    "H-csv"
+                  ]
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "confidence": {
+              "type": "number"
+            },
+            "overridden": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "variant",
+            "confidence",
+            "overridden"
+          ],
+          "additionalProperties": false
+        },
+        "snapshot": {
+          "type": "object",
+          "properties": {
+            "file": {
+              "type": "string"
+            },
+            "date": {
+              "type": "string"
+            },
+            "sha256": {
+              "type": "string"
+            },
+            "commit": {
+              "type": "string"
+            },
+            "sourceUrl": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "file",
+            "date",
+            "sha256",
+            "commit",
+            "sourceUrl"
+          ],
+          "additionalProperties": false
+        },
+        "priceLabel": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "fileName",
+        "fileBytes",
+        "variant",
+        "detection",
+        "snapshot",
+        "priceLabel"
+      ],
+      "additionalProperties": false
+    },
+    "coverage": {
+      "type": "object",
+      "properties": {
+        "totalRows": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "countedRows": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "rowsWithProviderUsage": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "rowsPriced": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "rowsNotPriced": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "rowsUnresolved": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "rowsMalformed": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "totalRows",
+        "countedRows",
+        "rowsWithProviderUsage",
+        "rowsPriced",
+        "rowsNotPriced",
+        "rowsUnresolved",
+        "rowsMalformed"
+      ],
+      "additionalProperties": false
+    },
+    "totals": {
+      "type": "object",
+      "properties": {
+        "value": {
+          "type": "object",
+          "properties": {
+            "exactUsd": {
+              "type": "string",
+              "pattern": "^-?\\d+(\\.\\d+)?$"
+            },
+            "displayUsd": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "exactUsd",
+            "displayUsd"
+          ],
+          "additionalProperties": false
+        },
+        "measuredCharge": {
+          "type": "object",
+          "properties": {
+            "exactUsd": {
+              "type": "string",
+              "pattern": "^-?\\d+(\\.\\d+)?$"
+            },
+            "displayUsd": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "exactUsd",
+            "displayUsd"
+          ],
+          "additionalProperties": false
+        },
+        "estimated": {
+          "type": "object",
+          "properties": {
+            "exactUsd": {
+              "type": "string",
+              "pattern": "^-?\\d+(\\.\\d+)?$"
+            },
+            "displayUsd": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "exactUsd",
+            "displayUsd"
+          ],
+          "additionalProperties": false
+        },
+        "partial": {
+          "type": "boolean"
+        },
+        "partialReason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "value",
+        "measuredCharge",
+        "estimated",
+        "partial",
+        "partialReason"
+      ],
+      "additionalProperties": false
+    },
+    "aggregates": {
+      "type": "object",
+      "properties": {
+        "byModel": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "key": {
+                "type": "string"
+              },
+              "rows": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "requests": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "tokens": {
+                "type": "object",
+                "properties": {
+                  "uncachedInput": {
+                    "type": "number"
+                  },
+                  "cacheRead": {
+                    "type": "number"
+                  },
+                  "cacheWrite": {
+                    "type": "number"
+                  },
+                  "output": {
+                    "type": "number"
+                  },
+                  "reasoning": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "uncachedInput",
+                  "cacheRead",
+                  "cacheWrite",
+                  "output",
+                  "reasoning"
+                ],
+                "additionalProperties": false
+              },
+              "valueUsd": {
+                "type": "string",
+                "pattern": "^-?\\d+(\\.\\d+)?$"
+              },
+              "rowsNotPriced": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "rowsUnresolved": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "key",
+              "rows",
+              "requests",
+              "tokens",
+              "valueUsd",
+              "rowsNotPriced",
+              "rowsUnresolved"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "byProvider": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "key": {
+                "type": "string"
+              },
+              "rows": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "requests": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "tokens": {
+                "type": "object",
+                "properties": {
+                  "uncachedInput": {
+                    "type": "number"
+                  },
+                  "cacheRead": {
+                    "type": "number"
+                  },
+                  "cacheWrite": {
+                    "type": "number"
+                  },
+                  "output": {
+                    "type": "number"
+                  },
+                  "reasoning": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "uncachedInput",
+                  "cacheRead",
+                  "cacheWrite",
+                  "output",
+                  "reasoning"
+                ],
+                "additionalProperties": false
+              },
+              "valueUsd": {
+                "type": "string",
+                "pattern": "^-?\\d+(\\.\\d+)?$"
+              },
+              "rowsNotPriced": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "rowsUnresolved": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "key",
+              "rows",
+              "requests",
+              "tokens",
+              "valueUsd",
+              "rowsNotPriced",
+              "rowsUnresolved"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "byDay": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "key": {
+                "type": "string"
+              },
+              "rows": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "requests": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "tokens": {
+                "type": "object",
+                "properties": {
+                  "uncachedInput": {
+                    "type": "number"
+                  },
+                  "cacheRead": {
+                    "type": "number"
+                  },
+                  "cacheWrite": {
+                    "type": "number"
+                  },
+                  "output": {
+                    "type": "number"
+                  },
+                  "reasoning": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "uncachedInput",
+                  "cacheRead",
+                  "cacheWrite",
+                  "output",
+                  "reasoning"
+                ],
+                "additionalProperties": false
+              },
+              "valueUsd": {
+                "type": "string",
+                "pattern": "^-?\\d+(\\.\\d+)?$"
+              },
+              "rowsNotPriced": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "rowsUnresolved": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "key",
+              "rows",
+              "requests",
+              "tokens",
+              "valueUsd",
+              "rowsNotPriced",
+              "rowsUnresolved"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "byLabel": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "key": {
+                "type": "string"
+              },
+              "rows": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "requests": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "tokens": {
+                "type": "object",
+                "properties": {
+                  "uncachedInput": {
+                    "type": "number"
+                  },
+                  "cacheRead": {
+                    "type": "number"
+                  },
+                  "cacheWrite": {
+                    "type": "number"
+                  },
+                  "output": {
+                    "type": "number"
+                  },
+                  "reasoning": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "uncachedInput",
+                  "cacheRead",
+                  "cacheWrite",
+                  "output",
+                  "reasoning"
+                ],
+                "additionalProperties": false
+              },
+              "valueUsd": {
+                "type": "string",
+                "pattern": "^-?\\d+(\\.\\d+)?$"
+              },
+              "rowsNotPriced": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "rowsUnresolved": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "key",
+              "rows",
+              "requests",
+              "tokens",
+              "valueUsd",
+              "rowsNotPriced",
+              "rowsUnresolved"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "overflowed": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "byModel",
+        "byProvider",
+        "byDay",
+        "byLabel",
+        "overflowed"
+      ],
+      "additionalProperties": false
+    },
+    "excludedFromCost": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string"
+      },
+      "additionalProperties": {
+        "type": "number"
+      }
+    },
+    "savings": {
+      "anyOf": [
+        {},
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "title",
+    "engineVersion",
+    "schemaVersion",
+    "exportedAt",
+    "calculationIdentity",
+    "provenance",
+    "coverage",
+    "totals",
+    "aggregates",
+    "excludedFromCost",
+    "savings"
+  ],
+  "additionalProperties": false
+}

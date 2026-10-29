@@ -1,0 +1,52 @@
+[
+  {
+    "tokens": {
+      "uncachedInput": 1500,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 400,
+      "reasoning": 0
+    },
+    "notMeasured": [
+      "cacheWrite"
+    ],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": "standard",
+    "modelLogged": "acme-unlisted-model-x",
+    "reported": null
+  },
+  {
+    "tokens": {
+      "uncachedInput": 1176,
+      "cacheRead": 1024,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 150,
+      "reasoning": 0
+    },
+    "notMeasured": [
+      "cacheWrite"
+    ],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": "standard",
+    "modelLogged": "acme-unlisted-model-x",
+    "reported": null
+  }
+]

@@ -1,0 +1,31 @@
+[
+  {
+    "call_type": "acompletion",
+    "api_key": "88dc28d0f030c55ed4ab77ed8faf098196cb1c05df778539800c9f1243fe6b4b",
+    "completionStartTime": "",
+    "model_id": "",
+    "api_base": "",
+    "user": "user-7f3a",
+    "cache_hit": "False",
+    "cache_key": "",
+    "request_tags": [],
+    "team_id": "team-2b9c",
+    "end_user": "",
+    "requester_ip_address": "",
+    "messages": {},
+    "response": {},
+    "session_id": "",
+    "status": "success",
+    "request_id": "ZQXMARK-zero-unresolved-df3f4494",
+    "spend": 0,
+    "prompt_tokens": 800,
+    "completion_tokens": 200,
+    "startTime": "2026-10-08T11:00:00.000Z",
+    "endTime": "2026-10-08T11:00:02.000Z",
+    "model": "gpt-4o",
+    "custom_llm_provider": "openai",
+    "metadata": {},
+    "total_tokens": 1000,
+    "model_group": "gpt-4o"
+  }
+]

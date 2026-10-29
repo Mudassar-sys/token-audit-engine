@@ -1,0 +1,1242 @@
+[
+  {
+    "tokens": {
+      "uncachedInput": 1000,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 100,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "cacheRead",
+      "cacheWrite",
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": null,
+    "modelLogged": "gpt-4o",
+    "reported": {
+      "amountUsd": "0.0035",
+      "field": "spend",
+      "kind": "gateway_estimate"
+    }
+  },
+  {
+    "tokens": {
+      "uncachedInput": 1200,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 150,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "cacheRead",
+      "cacheWrite",
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": null,
+    "modelLogged": "gpt-4o-mini",
+    "reported": {
+      "amountUsd": "0.00027",
+      "field": "spend",
+      "kind": "gateway_estimate"
+    }
+  },
+  {
+    "tokens": {
+      "uncachedInput": 1000,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 100,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "cacheRead",
+      "cacheWrite",
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": null,
+    "modelLogged": "gpt-4o",
+    "reported": {
+      "amountUsd": "0.0035",
+      "field": "spend",
+      "kind": "gateway_estimate"
+    }
+  },
+  {
+    "tokens": {
+      "uncachedInput": 1200,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 150,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "cacheRead",
+      "cacheWrite",
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": null,
+    "modelLogged": "gpt-4o-mini",
+    "reported": {
+      "amountUsd": "0.00027",
+      "field": "spend",
+      "kind": "gateway_estimate"
+    }
+  },
+  {
+    "tokens": {
+      "uncachedInput": 1000,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 100,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "cacheRead",
+      "cacheWrite",
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": null,
+    "modelLogged": "gpt-4o",
+    "reported": {
+      "amountUsd": "0.0035",
+      "field": "spend",
+      "kind": "gateway_estimate"
+    }
+  },
+  {
+    "tokens": {
+      "uncachedInput": 1200,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 150,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "cacheRead",
+      "cacheWrite",
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": null,
+    "modelLogged": "gpt-4o-mini",
+    "reported": {
+      "amountUsd": "0.00027",
+      "field": "spend",
+      "kind": "gateway_estimate"
+    }
+  },
+  {
+    "tokens": {
+      "uncachedInput": 1000,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 100,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "cacheRead",
+      "cacheWrite",
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": null,
+    "modelLogged": "gpt-4o",
+    "reported": {
+      "amountUsd": "0.0035",
+      "field": "spend",
+      "kind": "gateway_estimate"
+    }
+  },
+  {
+    "tokens": {
+      "uncachedInput": 1200,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 150,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "cacheRead",
+      "cacheWrite",
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": null,
+    "modelLogged": "gpt-4o-mini",
+    "reported": {
+      "amountUsd": "0.00027",
+      "field": "spend",
+      "kind": "gateway_estimate"
+    }
+  },
+  {
+    "tokens": {
+      "uncachedInput": 1000,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 100,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "cacheRead",
+      "cacheWrite",
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": null,
+    "modelLogged": "gpt-4o",
+    "reported": {
+      "amountUsd": "0.0035",
+      "field": "spend",
+      "kind": "gateway_estimate"
+    }
+  },
+  {
+    "tokens": {
+      "uncachedInput": 1200,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 150,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "cacheRead",
+      "cacheWrite",
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": null,
+    "modelLogged": "gpt-4o-mini",
+    "reported": {
+      "amountUsd": "0.00027",
+      "field": "spend",
+      "kind": "gateway_estimate"
+    }
+  },
+  {
+    "tokens": {
+      "uncachedInput": 1000,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 100,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "cacheRead",
+      "cacheWrite",
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": null,
+    "modelLogged": "gpt-4o",
+    "reported": {
+      "amountUsd": "0.0035",
+      "field": "spend",
+      "kind": "gateway_estimate"
+    }
+  },
+  {
+    "tokens": {
+      "uncachedInput": 1200,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 150,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "cacheRead",
+      "cacheWrite",
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": null,
+    "modelLogged": "gpt-4o-mini",
+    "reported": {
+      "amountUsd": "0.00027",
+      "field": "spend",
+      "kind": "gateway_estimate"
+    }
+  },
+  {
+    "tokens": {
+      "uncachedInput": 1000,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 100,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "cacheRead",
+      "cacheWrite",
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": null,
+    "modelLogged": "gpt-4o",
+    "reported": {
+      "amountUsd": "0.0035",
+      "field": "spend",
+      "kind": "gateway_estimate"
+    }
+  },
+  {
+    "tokens": {
+      "uncachedInput": 1200,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 150,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "cacheRead",
+      "cacheWrite",
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": null,
+    "modelLogged": "gpt-4o-mini",
+    "reported": {
+      "amountUsd": "0.00027",
+      "field": "spend",
+      "kind": "gateway_estimate"
+    }
+  },
+  {
+    "tokens": {
+      "uncachedInput": 1000,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 100,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "cacheRead",
+      "cacheWrite",
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": null,
+    "modelLogged": "gpt-4o",
+    "reported": {
+      "amountUsd": "0.0035",
+      "field": "spend",
+      "kind": "gateway_estimate"
+    }
+  },
+  {
+    "tokens": {
+      "uncachedInput": 1200,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 150,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "cacheRead",
+      "cacheWrite",
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": null,
+    "modelLogged": "gpt-4o-mini",
+    "reported": {
+      "amountUsd": "0.00027",
+      "field": "spend",
+      "kind": "gateway_estimate"
+    }
+  },
+  {
+    "tokens": {
+      "uncachedInput": 1000,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 100,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "cacheRead",
+      "cacheWrite",
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": null,
+    "modelLogged": "gpt-4o",
+    "reported": {
+      "amountUsd": "0.0035",
+      "field": "spend",
+      "kind": "gateway_estimate"
+    }
+  },
+  {
+    "tokens": {
+      "uncachedInput": 1200,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 150,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "cacheRead",
+      "cacheWrite",
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": null,
+    "modelLogged": "gpt-4o-mini",
+    "reported": {
+      "amountUsd": "0.00027",
+      "field": "spend",
+      "kind": "gateway_estimate"
+    }
+  },
+  {
+    "tokens": {
+      "uncachedInput": 1000,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 100,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "cacheRead",
+      "cacheWrite",
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": null,
+    "modelLogged": "gpt-4o",
+    "reported": {
+      "amountUsd": "0.0035",
+      "field": "spend",
+      "kind": "gateway_estimate"
+    }
+  },
+  {
+    "tokens": {
+      "uncachedInput": 1200,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 150,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "cacheRead",
+      "cacheWrite",
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": null,
+    "modelLogged": "gpt-4o-mini",
+    "reported": {
+      "amountUsd": "0.00027",
+      "field": "spend",
+      "kind": "gateway_estimate"
+    }
+  },
+  {
+    "tokens": {
+      "uncachedInput": 1000,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 100,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "cacheRead",
+      "cacheWrite",
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": null,
+    "modelLogged": "gpt-4o",
+    "reported": {
+      "amountUsd": "0.0035",
+      "field": "spend",
+      "kind": "gateway_estimate"
+    }
+  },
+  {
+    "tokens": {
+      "uncachedInput": 1200,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 150,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "cacheRead",
+      "cacheWrite",
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": null,
+    "modelLogged": "gpt-4o-mini",
+    "reported": {
+      "amountUsd": "0.00027",
+      "field": "spend",
+      "kind": "gateway_estimate"
+    }
+  },
+  {
+    "tokens": {
+      "uncachedInput": 1000,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 100,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "cacheRead",
+      "cacheWrite",
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": null,
+    "modelLogged": "gpt-4o",
+    "reported": {
+      "amountUsd": "0.0035",
+      "field": "spend",
+      "kind": "gateway_estimate"
+    }
+  },
+  {
+    "tokens": {
+      "uncachedInput": 1200,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 150,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "cacheRead",
+      "cacheWrite",
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": null,
+    "modelLogged": "gpt-4o-mini",
+    "reported": {
+      "amountUsd": "0.00027",
+      "field": "spend",
+      "kind": "gateway_estimate"
+    }
+  },
+  {
+    "tokens": {
+      "uncachedInput": 1000,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 100,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "cacheRead",
+      "cacheWrite",
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": null,
+    "modelLogged": "gpt-4o",
+    "reported": {
+      "amountUsd": "0.0035",
+      "field": "spend",
+      "kind": "gateway_estimate"
+    }
+  },
+  {
+    "tokens": {
+      "uncachedInput": 1200,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 150,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "cacheRead",
+      "cacheWrite",
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": null,
+    "modelLogged": "gpt-4o-mini",
+    "reported": {
+      "amountUsd": "0.00027",
+      "field": "spend",
+      "kind": "gateway_estimate"
+    }
+  },
+  {
+    "tokens": {
+      "uncachedInput": 1000,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 100,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "cacheRead",
+      "cacheWrite",
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": null,
+    "modelLogged": "gpt-4o",
+    "reported": {
+      "amountUsd": "0.0035",
+      "field": "spend",
+      "kind": "gateway_estimate"
+    }
+  },
+  {
+    "tokens": {
+      "uncachedInput": 1200,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 150,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "cacheRead",
+      "cacheWrite",
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": null,
+    "modelLogged": "gpt-4o-mini",
+    "reported": {
+      "amountUsd": "0.00027",
+      "field": "spend",
+      "kind": "gateway_estimate"
+    }
+  },
+  {
+    "tokens": {
+      "uncachedInput": 1000,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 100,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "cacheRead",
+      "cacheWrite",
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": null,
+    "modelLogged": "gpt-4o",
+    "reported": {
+      "amountUsd": "0.0035",
+      "field": "spend",
+      "kind": "gateway_estimate"
+    }
+  },
+  {
+    "tokens": {
+      "uncachedInput": 1200,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 150,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "cacheRead",
+      "cacheWrite",
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": null,
+    "modelLogged": "gpt-4o-mini",
+    "reported": {
+      "amountUsd": "0.00027",
+      "field": "spend",
+      "kind": "gateway_estimate"
+    }
+  },
+  {
+    "tokens": {
+      "uncachedInput": 1000,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 100,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "cacheRead",
+      "cacheWrite",
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": null,
+    "modelLogged": "gpt-4o",
+    "reported": {
+      "amountUsd": "0.0035",
+      "field": "spend",
+      "kind": "gateway_estimate"
+    }
+  },
+  {
+    "tokens": {
+      "uncachedInput": 1200,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 150,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "cacheRead",
+      "cacheWrite",
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": null,
+    "modelLogged": "gpt-4o-mini",
+    "reported": {
+      "amountUsd": "0.00027",
+      "field": "spend",
+      "kind": "gateway_estimate"
+    }
+  },
+  {
+    "tokens": {
+      "uncachedInput": 1000,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 100,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "cacheRead",
+      "cacheWrite",
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": null,
+    "modelLogged": "gpt-4o",
+    "reported": {
+      "amountUsd": "0.0035",
+      "field": "spend",
+      "kind": "gateway_estimate"
+    }
+  },
+  {
+    "tokens": {
+      "uncachedInput": 1200,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 150,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "cacheRead",
+      "cacheWrite",
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": null,
+    "modelLogged": "gpt-4o-mini",
+    "reported": {
+      "amountUsd": "0.00027",
+      "field": "spend",
+      "kind": "gateway_estimate"
+    }
+  },
+  {
+    "tokens": {
+      "uncachedInput": 1000,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 100,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "cacheRead",
+      "cacheWrite",
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": null,
+    "modelLogged": "gpt-4o",
+    "reported": {
+      "amountUsd": "0.0035",
+      "field": "spend",
+      "kind": "gateway_estimate"
+    }
+  },
+  {
+    "tokens": {
+      "uncachedInput": 1200,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 150,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "cacheRead",
+      "cacheWrite",
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": null,
+    "modelLogged": "gpt-4o-mini",
+    "reported": {
+      "amountUsd": "0.00027",
+      "field": "spend",
+      "kind": "gateway_estimate"
+    }
+  },
+  {
+    "tokens": {
+      "uncachedInput": 1000,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 100,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "cacheRead",
+      "cacheWrite",
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": null,
+    "modelLogged": "gpt-4o",
+    "reported": {
+      "amountUsd": "0.0035",
+      "field": "spend",
+      "kind": "gateway_estimate"
+    }
+  },
+  {
+    "tokens": {
+      "uncachedInput": 1200,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 150,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "cacheRead",
+      "cacheWrite",
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": null,
+    "modelLogged": "gpt-4o-mini",
+    "reported": {
+      "amountUsd": "0.00027",
+      "field": "spend",
+      "kind": "gateway_estimate"
+    }
+  },
+  {
+    "tokens": {
+      "uncachedInput": 1000,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 100,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "cacheRead",
+      "cacheWrite",
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": null,
+    "modelLogged": "gpt-4o",
+    "reported": {
+      "amountUsd": "0.0035",
+      "field": "spend",
+      "kind": "gateway_estimate"
+    }
+  },
+  {
+    "tokens": {
+      "uncachedInput": 1200,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 150,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "cacheRead",
+      "cacheWrite",
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": null,
+    "modelLogged": "gpt-4o-mini",
+    "reported": {
+      "amountUsd": "0.00027",
+      "field": "spend",
+      "kind": "gateway_estimate"
+    }
+  }
+]

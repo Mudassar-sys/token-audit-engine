@@ -1,0 +1,170 @@
+[
+  {
+    "tokens": {
+      "uncachedInput": 400,
+      "cacheRead": 300,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 75,
+        "12h": 25
+      },
+      "output": 400,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "reasoning"
+    ],
+    "excluded": {
+      "input_audio": 100,
+      "input_image": 100,
+      "output_audio": 50,
+      "output_image": 50
+    },
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 5,
+    "tierStated": null,
+    "modelLogged": "gpt-6.1-sol",
+    "reported": null
+  },
+  {
+    "tokens": {
+      "uncachedInput": 500,
+      "cacheRead": 400,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 100,
+        "12h": 0
+      },
+      "output": 200,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 2,
+    "tierStated": "standard",
+    "modelLogged": "gpt-6.1-sol",
+    "reported": null
+  },
+  {
+    "tokens": {
+      "uncachedInput": 2500,
+      "cacheRead": 1500,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 150,
+        "12h": 50
+      },
+      "output": 800,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "reasoning"
+    ],
+    "excluded": {
+      "input_audio": 400,
+      "input_image": 400,
+      "output_audio": 100,
+      "output_image": 100
+    },
+    "flags": [
+      "model_missing"
+    ],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 5,
+    "tierStated": null,
+    "modelLogged": null,
+    "reported": null
+  },
+  {
+    "tokens": {
+      "uncachedInput": 1300,
+      "cacheRead": 500,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 200,
+        "12h": 0
+      },
+      "output": 300,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [
+      "duration_assumed"
+    ],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 3,
+    "tierStated": "standard",
+    "modelLogged": "gpt-6.1-sol",
+    "reported": null
+  },
+  {
+    "tokens": {
+      "uncachedInput": 800,
+      "cacheRead": 200,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 100,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 4,
+    "tierStated": "batch",
+    "modelLogged": "gpt-4o-mini",
+    "reported": null
+  },
+  {
+    "tokens": {
+      "uncachedInput": 700,
+      "cacheRead": 250,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 150,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "reasoning"
+    ],
+    "excluded": {
+      "input_audio": 50
+    },
+    "flags": [
+      "totals_disagree"
+    ],
+    "unresolvedReason": "input_cached_text/audio/image_tokens sum (250) differs from input_cached_tokens (300)",
+    "counted": true,
+    "requests": 1,
+    "tierStated": "flex",
+    "modelLogged": "gpt-4o",
+    "reported": null
+  }
+]

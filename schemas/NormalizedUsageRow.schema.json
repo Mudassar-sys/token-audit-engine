@@ -1,0 +1,263 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "NormalizedUsageRow.schema.json",
+  "title": "NormalizedUsageRow",
+  "type": "object",
+  "properties": {
+    "rowIndex": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "timestamp": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "variant": {
+      "type": "string",
+      "enum": [
+        "A-json",
+        "A-jsonl",
+        "B-json",
+        "B-jsonl",
+        "C-page",
+        "D-json",
+        "D-jsonl",
+        "E-json",
+        "E-jsonl",
+        "F-csv",
+        "F-json",
+        "G-otlp",
+        "G-otlp-jsonl",
+        "H-csv"
+      ]
+    },
+    "provider": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "modelLogged": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "tierStated": {
+      "anyOf": [
+        {
+          "type": "string",
+          "enum": [
+            "standard",
+            "batch",
+            "flex",
+            "priority",
+            "ultrafast"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "granularity": {
+      "type": "string",
+      "enum": [
+        "request",
+        "time_bucket"
+      ]
+    },
+    "tokens": {
+      "type": "object",
+      "properties": {
+        "uncachedInput": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "cacheRead": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "cacheWrite": {
+          "type": "object",
+          "properties": {
+            "5m": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "1h": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "30m": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "12h": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "5m",
+            "1h",
+            "30m",
+            "12h"
+          ],
+          "additionalProperties": false
+        },
+        "output": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "reasoning": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "uncachedInput",
+        "cacheRead",
+        "cacheWrite",
+        "output",
+        "reasoning"
+      ],
+      "additionalProperties": false
+    },
+    "notMeasured": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "excluded": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string"
+      },
+      "additionalProperties": {
+        "type": "number",
+        "minimum": 0
+      }
+    },
+    "reported": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "amountUsd": {
+              "type": "string",
+              "pattern": "^-?\\d+(\\.\\d+)?$"
+            },
+            "field": {
+              "type": "string"
+            },
+            "kind": {
+              "type": "string",
+              "enum": [
+                "charge",
+                "gateway_estimate"
+              ]
+            }
+          },
+          "required": [
+            "amountUsd",
+            "field",
+            "kind"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "raw": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string"
+      },
+      "additionalProperties": {}
+    },
+    "mapping": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "flags": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "tier_assumed",
+          "duration_assumed",
+          "inclusion_assumed",
+          "inclusion_detected",
+          "long_context_applied",
+          "long_context_not_applied_bucket",
+          "totals_disagree",
+          "cache_exceeds_input",
+          "aggregate_span",
+          "overlaps_counted_child",
+          "aggregate_mismatch",
+          "cost_inconsistent",
+          "malformed",
+          "model_missing"
+        ]
+      }
+    },
+    "unresolvedReason": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "counted": {
+      "type": "boolean"
+    },
+    "requests": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    }
+  },
+  "required": [
+    "rowIndex",
+    "timestamp",
+    "variant",
+    "provider",
+    "modelLogged",
+    "tierStated",
+    "granularity",
+    "tokens",
+    "notMeasured",
+    "excluded",
+    "reported",
+    "raw",
+    "mapping",
+    "flags",
+    "unresolvedReason",
+    "counted",
+    "requests"
+  ],
+  "additionalProperties": false
+}

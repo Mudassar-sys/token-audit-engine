@@ -1,0 +1,622 @@
+[
+  {
+    "tokens": {
+      "uncachedInput": 600,
+      "cacheRead": 400,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 200,
+      "reasoning": 50
+    },
+    "notMeasured": [],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": "standard",
+    "modelLogged": "gpt-4o",
+    "reported": null
+  },
+  {
+    "tokens": {
+      "uncachedInput": 1122,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 128,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 220,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [
+      "duration_assumed"
+    ],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": null,
+    "modelLogged": "gpt-4o-mini",
+    "reported": null
+  },
+  {
+    "tokens": {
+      "uncachedInput": 1500,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 240,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": "batch",
+    "modelLogged": "claude-sonnet-4-5-20250929",
+    "reported": {
+      "amountUsd": "0.003",
+      "field": "billed_usd",
+      "kind": "charge"
+    }
+  },
+  {
+    "tokens": {
+      "uncachedInput": 1320,
+      "cacheRead": 430,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 260,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": "standard",
+    "modelLogged": "claude-haiku-4-5",
+    "reported": null
+  },
+  {
+    "tokens": {
+      "uncachedInput": 2000,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 280,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": "priority",
+    "modelLogged": "gpt-4o",
+    "reported": null
+  },
+  {
+    "tokens": {
+      "uncachedInput": 2122,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 128,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 300,
+      "reasoning": 55
+    },
+    "notMeasured": [],
+    "excluded": {},
+    "flags": [
+      "duration_assumed"
+    ],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": "standard",
+    "modelLogged": "gpt-4o-mini",
+    "reported": null
+  },
+  {
+    "tokens": {
+      "uncachedInput": 2040,
+      "cacheRead": 460,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 320,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": "standard",
+    "modelLogged": "claude-sonnet-4-5-20250929",
+    "reported": null
+  },
+  {
+    "tokens": {
+      "uncachedInput": 0,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 0,
+      "reasoning": null
+    },
+    "notMeasured": [],
+    "excluded": {},
+    "flags": [
+      "malformed"
+    ],
+    "unresolvedReason": "Malformed: output_tok \"n/a\" is not a non-negative integer",
+    "counted": true,
+    "requests": 1,
+    "tierStated": null,
+    "modelLogged": null,
+    "reported": null
+  },
+  {
+    "tokens": {
+      "uncachedInput": 3000,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 360,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": "batch",
+    "modelLogged": "gpt-4o",
+    "reported": {
+      "amountUsd": "0.009",
+      "field": "billed_usd",
+      "kind": "charge"
+    }
+  },
+  {
+    "tokens": {
+      "uncachedInput": 2632,
+      "cacheRead": 490,
+      "cacheWrite": {
+        "5m": 128,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 380,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [
+      "duration_assumed"
+    ],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": "flex",
+    "modelLogged": "gpt-4o-mini",
+    "reported": null
+  },
+  {
+    "tokens": {
+      "uncachedInput": 3500,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 400,
+      "reasoning": 60
+    },
+    "notMeasured": [],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": "priority",
+    "modelLogged": "claude-sonnet-4-5-20250929",
+    "reported": null
+  },
+  {
+    "tokens": {
+      "uncachedInput": 0,
+      "cacheRead": 5000,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 420,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [
+      "cache_exceeds_input"
+    ],
+    "unresolvedReason": "cache tokens (5000) exceed input tokens (3750)",
+    "counted": true,
+    "requests": 1,
+    "tierStated": "standard",
+    "modelLogged": "claude-haiku-4-5",
+    "reported": null
+  },
+  {
+    "tokens": {
+      "uncachedInput": 3480,
+      "cacheRead": 520,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 440,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": "standard",
+    "modelLogged": "gpt-4o",
+    "reported": null
+  },
+  {
+    "tokens": {
+      "uncachedInput": 4122,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 128,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 460,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [
+      "duration_assumed"
+    ],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": null,
+    "modelLogged": "gpt-4o-mini",
+    "reported": null
+  },
+  {
+    "tokens": {
+      "uncachedInput": 4500,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 480,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": "batch",
+    "modelLogged": "claude-sonnet-4-5-20250929",
+    "reported": {
+      "amountUsd": "0.015",
+      "field": "billed_usd",
+      "kind": "charge"
+    }
+  },
+  {
+    "tokens": {
+      "uncachedInput": 4200,
+      "cacheRead": 550,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 500,
+      "reasoning": 65
+    },
+    "notMeasured": [],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": "standard",
+    "modelLogged": "claude-haiku-4-5",
+    "reported": null
+  },
+  {
+    "tokens": {
+      "uncachedInput": 5000,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 520,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": "priority",
+    "modelLogged": "gpt-4o",
+    "reported": null
+  },
+  {
+    "tokens": {
+      "uncachedInput": 5122,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 128,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 540,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [
+      "duration_assumed"
+    ],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": "standard",
+    "modelLogged": "gpt-4o-mini",
+    "reported": null
+  },
+  {
+    "tokens": {
+      "uncachedInput": 4920,
+      "cacheRead": 580,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 560,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": "standard",
+    "modelLogged": "claude-sonnet-4-5-20250929",
+    "reported": null
+  },
+  {
+    "tokens": {
+      "uncachedInput": 5750,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 580,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": null,
+    "modelLogged": "claude-haiku-4-5",
+    "reported": null
+  },
+  {
+    "tokens": {
+      "uncachedInput": 6000,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 600,
+      "reasoning": 70
+    },
+    "notMeasured": [],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": "batch",
+    "modelLogged": "gpt-4o",
+    "reported": {
+      "amountUsd": "0.021",
+      "field": "billed_usd",
+      "kind": "charge"
+    }
+  },
+  {
+    "tokens": {
+      "uncachedInput": 5512,
+      "cacheRead": 610,
+      "cacheWrite": {
+        "5m": 128,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 620,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [
+      "duration_assumed"
+    ],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": "flex",
+    "modelLogged": "gpt-4o-mini",
+    "reported": null
+  },
+  {
+    "tokens": {
+      "uncachedInput": 6500,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 640,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": "priority",
+    "modelLogged": "claude-sonnet-4-5-20250929",
+    "reported": null
+  },
+  {
+    "tokens": {
+      "uncachedInput": 6750,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 660,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": "standard",
+    "modelLogged": "claude-haiku-4-5",
+    "reported": null
+  }
+]

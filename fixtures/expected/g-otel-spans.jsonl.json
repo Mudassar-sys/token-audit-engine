@@ -1,0 +1,171 @@
+[
+  {
+    "tokens": {
+      "uncachedInput": 400,
+      "cacheRead": 2000,
+      "cacheWrite": {
+        "5m": 100,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 220,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [
+      "duration_assumed"
+    ],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": null,
+    "modelLogged": "claude-haiku-4-5",
+    "reported": null
+  },
+  {
+    "tokens": {
+      "uncachedInput": 1200,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 180,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "cacheRead",
+      "cacheWrite",
+      "reasoning"
+    ],
+    "excluded": {
+      "input_image": 300
+    },
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": null,
+    "modelLogged": "gpt-4o",
+    "reported": null
+  },
+  {
+    "tokens": {
+      "uncachedInput": 4000,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 400,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "cacheRead",
+      "cacheWrite",
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [
+      "model_missing",
+      "aggregate_span"
+    ],
+    "unresolvedReason": null,
+    "counted": false,
+    "requests": 1,
+    "tierStated": null,
+    "modelLogged": null,
+    "reported": null
+  },
+  {
+    "tokens": {
+      "uncachedInput": 640,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 64,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "cacheRead",
+      "cacheWrite",
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": null,
+    "modelLogged": "gpt-4o-mini",
+    "reported": null
+  },
+  {
+    "tokens": {
+      "uncachedInput": 300,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 40,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "cacheRead",
+      "cacheWrite",
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": "fetch_response spans should not report usage; review needed",
+    "counted": true,
+    "requests": 1,
+    "tierStated": null,
+    "modelLogged": "gpt-4o",
+    "reported": null
+  },
+  {
+    "tokens": {
+      "uncachedInput": 800,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 200,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 90,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "cacheRead",
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [
+      "totals_disagree",
+      "duration_assumed"
+    ],
+    "unresolvedReason": "gen_ai.usage.cache_write.input_tokens (200) differs from gen_ai.usage.cache_creation.input_tokens (250)",
+    "counted": true,
+    "requests": 1,
+    "tierStated": null,
+    "modelLogged": "claude-sonnet-4-5-20250929",
+    "reported": null
+  }
+]

@@ -1,0 +1,12 @@
+node_modules
+dist
+test-results
+playwright-report
+blob-report
+*.local
+.vercel
+.env*
+/tmp
+walkthrough/
+*.mp4
+*.webm

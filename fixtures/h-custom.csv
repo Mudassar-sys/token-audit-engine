@@ -1,0 +1,25 @@
+event_time,vendor,model_name,input_tok,cached_tok,cache_write_tok,output_tok,reasoning_tok,service_level,billed_usd,note
+2026-10-10T08:15:00Z,openai,gpt-4o,1000,400,0,200,50,Standard,,ZQXMARK-h-custom-6cced6b6
+2026-10-11T09:15:00Z,openai,gpt-4o-mini,1250,0,128,220,,,,batch job 1
+2026-10-12T10:15:00Z,anthropic,claude-sonnet-4-5-20250929,1500,0,0,240,,Batches,0.003000,batch job 2
+2026-10-13T11:15:00Z,anthropic,claude-haiku-4-5,1750,430,0,260,,standard,,batch job 3
+2026-10-14T12:15:00Z,openai,gpt-4o,2000,0,0,280,,priority,,batch job 4
+2026-10-15T13:15:00Z,openai,gpt-4o-mini,2250,0,128,300,55,standard,,batch job 5
+2026-10-16T14:15:00Z,anthropic,claude-sonnet-4-5-20250929,2500,460,0,320,,Standard,,batch job 6
+2026-10-17T15:15:00Z,anthropic,claude-haiku-4-5,2750,0,0,n/a,,,,batch job 7
+2026-10-18T16:15:00Z,openai,gpt-4o,3000,0,0,360,,Batches,0.009000,batch job 8
+2026-10-10T17:15:00Z,openai,gpt-4o-mini,3250,490,128,380,,flex,,batch job 9
+2026-10-11T18:15:00Z,anthropic,claude-sonnet-4-5-20250929,3500,0,0,400,60,priority,,batch job 10
+2026-10-12T19:15:00Z,anthropic,claude-haiku-4-5,3750,5000,0,420,,standard,,batch job 11
+2026-10-13T08:15:00Z,openai,gpt-4o,4000,520,0,440,,Standard,,batch job 12
+2026-10-14T09:15:00Z,openai,gpt-4o-mini,4250,0,128,460,,,,batch job 13
+2026-10-15T10:15:00Z,anthropic,claude-sonnet-4-5-20250929,4500,0,0,480,,Batches,0.015000,batch job 14
+2026-10-16T11:15:00Z,anthropic,claude-haiku-4-5,4750,550,0,500,65,standard,,batch job 15
+2026-10-17T12:15:00Z,openai,gpt-4o,5000,0,0,520,,priority,,batch job 16
+2026-10-18T13:15:00Z,openai,gpt-4o-mini,5250,0,128,540,,standard,,batch job 17
+2026-10-10T14:15:00Z,anthropic,claude-sonnet-4-5-20250929,5500,580,0,560,,Standard,,batch job 18
+2026-10-11T15:15:00Z,anthropic,claude-haiku-4-5,5750,0,0,580,,,,batch job 19
+2026-10-12T16:15:00Z,openai,gpt-4o,6000,0,0,600,70,Batches,0.021000,batch job 20
+2026-10-13T17:15:00Z,openai,gpt-4o-mini,6250,610,128,620,,flex,,batch job 21
+2026-10-14T18:15:00Z,anthropic,claude-sonnet-4-5-20250929,6500,0,0,640,,priority,,batch job 22
+2026-10-15T19:15:00Z,anthropic,claude-haiku-4-5,6750,0,0,660,,standard,,batch job 23

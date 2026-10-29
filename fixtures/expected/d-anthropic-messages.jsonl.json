@@ -1,0 +1,155 @@
+[
+  {
+    "tokens": {
+      "uncachedInput": 2048,
+      "cacheRead": 1800,
+      "cacheWrite": {
+        "5m": 148,
+        "1h": 100,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 503,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": null,
+    "modelLogged": "claude-sonnet-4-5-20250929",
+    "reported": null
+  },
+  {
+    "tokens": {
+      "uncachedInput": 610,
+      "cacheRead": 2900,
+      "cacheWrite": {
+        "5m": 512,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 95,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [
+      "duration_assumed"
+    ],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": "standard",
+    "modelLogged": "claude-haiku-4-5",
+    "reported": null
+  },
+  {
+    "tokens": {
+      "uncachedInput": 1500,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 3100,
+      "reasoning": 2600
+    },
+    "notMeasured": [],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": "standard",
+    "modelLogged": "claude-sonnet-4-5-20250929",
+    "reported": null
+  },
+  {
+    "tokens": {
+      "uncachedInput": 7200,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 410,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": "batch",
+    "modelLogged": "claude-haiku-4-5",
+    "reported": null
+  },
+  {
+    "tokens": {
+      "uncachedInput": 3900,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 540,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "reasoning"
+    ],
+    "excluded": {
+      "web_search_requests": 2,
+      "web_fetch_requests": 1
+    },
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": "standard",
+    "modelLogged": "claude-sonnet-4-5-20250929",
+    "reported": null
+  },
+  {
+    "tokens": {
+      "uncachedInput": 800,
+      "cacheRead": 0,
+      "cacheWrite": {
+        "5m": 0,
+        "1h": 0,
+        "30m": 0,
+        "12h": 0
+      },
+      "output": 200,
+      "reasoning": null
+    },
+    "notMeasured": [
+      "reasoning"
+    ],
+    "excluded": {},
+    "flags": [],
+    "unresolvedReason": null,
+    "counted": true,
+    "requests": 1,
+    "tierStated": "priority",
+    "modelLogged": "claude-sonnet-4-5-20250929",
+    "reported": null
+  }
+]

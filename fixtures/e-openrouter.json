@@ -1,0 +1,160 @@
+[
+  {
+    "id": "gen-ZQXMARK-e-openrouter-8444b9a7",
+    "object": "chat.completion",
+    "created": 1792800000,
+    "model": "anthropic/claude-sonnet-4.5",
+    "choices": [
+      {
+        "index": 0,
+        "finish_reason": "stop",
+        "native_finish_reason": "stop",
+        "message": {
+          "role": "assistant",
+          "content": "Synthetic reply."
+        }
+      }
+    ],
+    "usage": {
+      "completion_tokens": 2,
+      "completion_tokens_details": {
+        "reasoning_tokens": 0
+      },
+      "cost": 0.95,
+      "cost_details": {
+        "upstream_inference_cost": 19
+      },
+      "prompt_tokens": 194,
+      "prompt_tokens_details": {
+        "cached_tokens": 0,
+        "cache_write_tokens": 100,
+        "audio_tokens": 0
+      },
+      "total_tokens": 196,
+      "is_byok": true
+    },
+    "provider": "Anthropic"
+  },
+  {
+    "id": "gen-e1-0002",
+    "object": "chat.completion",
+    "created": 1792800060,
+    "model": "openai/gpt-4o-mini",
+    "choices": [
+      {
+        "index": 0,
+        "finish_reason": "stop",
+        "native_finish_reason": "stop",
+        "message": {
+          "role": "assistant",
+          "content": "Synthetic reply."
+        }
+      }
+    ],
+    "usage": {
+      "prompt_tokens": 10339,
+      "completion_tokens": 60,
+      "total_tokens": 10399,
+      "prompt_tokens_details": {
+        "cached_tokens": 10318,
+        "cache_write_tokens": 0
+      }
+    },
+    "provider": "OpenAI"
+  },
+  {
+    "id": "gen-xxxxxxxxxxxxxx",
+    "choices": [
+      {
+        "finish_reason": "stop",
+        "native_finish_reason": "stop",
+        "message": {
+          "role": "assistant",
+          "content": "Hello there!"
+        }
+      }
+    ],
+    "usage": {
+      "prompt_tokens": 10,
+      "completion_tokens": 4,
+      "total_tokens": 14,
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      },
+      "completion_tokens_details": {
+        "reasoning_tokens": 0
+      },
+      "cost": 0.00014
+    },
+    "model": "openai/gpt-4o"
+  },
+  {
+    "id": "gen-e1-0004",
+    "object": "chat.completion",
+    "created": 1792800180,
+    "model": "meta-llama/llama-3.3-70b-instruct:free",
+    "choices": [
+      {
+        "index": 0,
+        "finish_reason": "stop",
+        "native_finish_reason": "stop",
+        "message": {
+          "role": "assistant",
+          "content": "Synthetic reply."
+        }
+      }
+    ],
+    "usage": {
+      "prompt_tokens": 420,
+      "completion_tokens": 180,
+      "total_tokens": 600,
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      },
+      "completion_tokens_details": {
+        "reasoning_tokens": 0
+      },
+      "cost": 0,
+      "is_byok": false
+    }
+  },
+  {
+    "id": "gen-e1-0005",
+    "object": "chat.completion",
+    "created": 1792800240,
+    "model": "openai/o4-mini",
+    "choices": [
+      {
+        "index": 0,
+        "finish_reason": "stop",
+        "native_finish_reason": "stop",
+        "message": {
+          "role": "assistant",
+          "content": "Synthetic reply."
+        }
+      }
+    ],
+    "usage": {
+      "completion_tokens": 15,
+      "completion_tokens_details": {
+        "reasoning_tokens": 5
+      },
+      "cost": 0.0012,
+      "cost_details": {
+        "upstream_inference_completions_cost": 0.0004,
+        "upstream_inference_cost": null,
+        "upstream_inference_prompt_cost": 0.0008
+      },
+      "is_byok": false,
+      "prompt_tokens": 10,
+      "prompt_tokens_details": {
+        "cached_tokens": 2
+      },
+      "server_tool_use_details": {
+        "tool_calls_executed": 2,
+        "tool_calls_requested": 2
+      },
+      "total_tokens": 25
+    }
+  }
+]

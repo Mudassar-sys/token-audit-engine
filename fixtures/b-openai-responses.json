@@ -1,0 +1,169 @@
+[
+  {
+    "id": "resp_ZQXMARK-b-openai-responses-d5ffe7d4",
+    "object": "response",
+    "created_at": 1792800000,
+    "status": "completed",
+    "model": "gpt-6.1-sol",
+    "output": [
+      {
+        "type": "message",
+        "role": "assistant",
+        "content": [
+          {
+            "type": "output_text",
+            "text": "Synthetic reply."
+          }
+        ]
+      }
+    ],
+    "usage": {
+      "input_tokens": 12000,
+      "input_tokens_details": {
+        "cached_tokens": 4000,
+        "cache_write_tokens": 7000,
+        "cache_write_tokens_details": {
+          "ttl_30m_tokens": 3000,
+          "ttl_12h_tokens": 4000
+        }
+      },
+      "output_tokens": 500,
+      "output_tokens_details": {
+        "reasoning_tokens": 0
+      },
+      "total_tokens": 12500
+    },
+    "service_tier": "default"
+  },
+  {
+    "id": "resp_b1_0002",
+    "object": "response",
+    "created_at": 1792800060,
+    "status": "completed",
+    "model": "o4-mini",
+    "output": [
+      {
+        "type": "message",
+        "role": "assistant",
+        "content": [
+          {
+            "type": "output_text",
+            "text": "Synthetic reply."
+          }
+        ]
+      }
+    ],
+    "usage": {
+      "input_tokens": 75,
+      "input_tokens_details": {
+        "cached_tokens": 0
+      },
+      "output_tokens": 1186,
+      "output_tokens_details": {
+        "reasoning_tokens": 1024
+      },
+      "total_tokens": 1261
+    },
+    "service_tier": "auto"
+  },
+  {
+    "id": "resp_b1_0003",
+    "object": "response",
+    "created_at": 1792800120,
+    "status": "completed",
+    "model": "o3",
+    "output": [
+      {
+        "type": "message",
+        "role": "assistant",
+        "content": [
+          {
+            "type": "output_text",
+            "text": "Synthetic reply."
+          }
+        ]
+      }
+    ],
+    "usage": {
+      "input_tokens": 4200,
+      "input_tokens_details": {
+        "cached_tokens": 0,
+        "cache_write_tokens": 0
+      },
+      "output_tokens": 1800,
+      "output_tokens_details": {
+        "reasoning_tokens": 1280
+      },
+      "total_tokens": 6000
+    },
+    "service_tier": "flex"
+  },
+  {
+    "id": "resp_b1_0004",
+    "object": "response",
+    "created_at": 1792800180,
+    "status": "completed",
+    "model": "gpt-5",
+    "output": [
+      {
+        "type": "message",
+        "role": "assistant",
+        "content": [
+          {
+            "type": "output_text",
+            "text": "Synthetic reply."
+          }
+        ]
+      }
+    ],
+    "usage": {
+      "input_tokens": 3300,
+      "input_tokens_details": {
+        "cached_tokens": 2048,
+        "cache_write_tokens": 0
+      },
+      "output_tokens": 600,
+      "output_tokens_details": {
+        "reasoning_tokens": 384
+      },
+      "total_tokens": 3900
+    },
+    "service_tier": "priority"
+  },
+  {
+    "id": "resp_b1_0005",
+    "object": "response",
+    "created_at": 1792800240,
+    "status": "completed",
+    "model": "gpt-6.1-sol",
+    "output": [
+      {
+        "type": "message",
+        "role": "assistant",
+        "content": [
+          {
+            "type": "output_text",
+            "text": "Synthetic reply."
+          }
+        ]
+      }
+    ],
+    "usage": {
+      "input_tokens": 300000,
+      "input_tokens_details": {
+        "cached_tokens": 100000,
+        "cache_write_tokens": 50000,
+        "cache_write_tokens_details": {
+          "ttl_30m_tokens": 50000,
+          "ttl_12h_tokens": 0
+        }
+      },
+      "output_tokens": 2000,
+      "output_tokens_details": {
+        "reasoning_tokens": 512
+      },
+      "total_tokens": 302000
+    },
+    "service_tier": "default"
+  }
+]

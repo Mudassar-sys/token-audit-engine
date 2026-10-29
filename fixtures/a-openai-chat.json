@@ -1,0 +1,163 @@
+[
+  {
+    "id": "chatcmpl-ZQXMARK-a-openai-chat-d31ec2d8",
+    "object": "chat.completion",
+    "created": 1792800000,
+    "model": "gpt-4o-2024-08-06",
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "Synthetic reply."
+        },
+        "finish_reason": "stop"
+      }
+    ],
+    "usage": {
+      "prompt_tokens": 2006,
+      "completion_tokens": 300,
+      "total_tokens": 2306,
+      "prompt_tokens_details": {
+        "cached_tokens": 1920,
+        "audio_tokens": 0
+      },
+      "completion_tokens_details": {
+        "reasoning_tokens": 0,
+        "audio_tokens": 0,
+        "accepted_prediction_tokens": 0,
+        "rejected_prediction_tokens": 0
+      }
+    },
+    "service_tier": "default"
+  },
+  {
+    "id": "chatcmpl-a1-0002",
+    "object": "chat.completion",
+    "created": 1792800060,
+    "model": "o4-mini",
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "Synthetic reply."
+        },
+        "finish_reason": "stop"
+      }
+    ],
+    "usage": {
+      "prompt_tokens": 1500,
+      "completion_tokens": 2200,
+      "total_tokens": 3700,
+      "prompt_tokens_details": {
+        "cached_tokens": 0,
+        "audio_tokens": 0
+      },
+      "completion_tokens_details": {
+        "reasoning_tokens": 1600,
+        "audio_tokens": 0,
+        "accepted_prediction_tokens": 0,
+        "rejected_prediction_tokens": 0
+      }
+    },
+    "service_tier": "default"
+  },
+  {
+    "id": "chatcmpl-a1-0003",
+    "object": "chat.completion",
+    "created": 1792800120,
+    "model": "gpt-6.1-sol",
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "Synthetic reply."
+        },
+        "finish_reason": "stop"
+      }
+    ],
+    "usage": {
+      "prompt_tokens": 9000,
+      "completion_tokens": 400,
+      "total_tokens": 9400,
+      "prompt_tokens_details": {
+        "cached_tokens": 2000,
+        "cache_write_tokens": 5000,
+        "audio_tokens": 0,
+        "image_tokens": 0,
+        "text_tokens": 9000
+      },
+      "completion_tokens_details": {
+        "reasoning_tokens": 120,
+        "audio_tokens": 0,
+        "accepted_prediction_tokens": 0,
+        "rejected_prediction_tokens": 0,
+        "text_tokens": 400
+      }
+    },
+    "service_tier": "default"
+  },
+  {
+    "id": "chatcmpl-a1-0004",
+    "object": "chat.completion",
+    "created": 1792800180,
+    "model": "gpt-4o-audio-preview",
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "Synthetic reply."
+        },
+        "finish_reason": "stop"
+      }
+    ],
+    "usage": {
+      "prompt_tokens": 1200,
+      "completion_tokens": 500,
+      "total_tokens": 1700,
+      "prompt_tokens_details": {
+        "cached_tokens": 0,
+        "audio_tokens": 900,
+        "text_tokens": 300
+      },
+      "completion_tokens_details": {
+        "reasoning_tokens": 0,
+        "audio_tokens": 420,
+        "text_tokens": 80
+      }
+    },
+    "service_tier": "default"
+  },
+  {
+    "id": "chatcmpl-a1-0005",
+    "object": "chat.completion",
+    "created": 1792800240,
+    "model": "o3",
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "Synthetic reply."
+        },
+        "finish_reason": "stop"
+      }
+    ],
+    "usage": {
+      "prompt_tokens": 3000,
+      "completion_tokens": 900,
+      "total_tokens": 3900,
+      "prompt_tokens_details": {
+        "cached_tokens": 0,
+        "cache_write_tokens": 0
+      },
+      "completion_tokens_details": {
+        "reasoning_tokens": 640
+      }
+    },
+    "service_tier": "flex"
+  }
+]

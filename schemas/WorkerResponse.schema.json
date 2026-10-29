@@ -1,0 +1,2431 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "WorkerResponse.schema.json",
+  "title": "WorkerResponse",
+  "oneOf": [
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "detected"
+        },
+        "result": {
+          "type": "object",
+          "properties": {
+            "variant": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "A-json",
+                    "A-jsonl",
+                    "B-json",
+                    "B-jsonl",
+                    "C-page",
+                    "D-json",
+                    "D-jsonl",
+                    "E-json",
+                    "E-jsonl",
+                    "F-csv",
+                    "F-json",
+                    "G-otlp",
+                    "G-otlp-jsonl",
+                    "H-csv"
+                  ]
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "confidence": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "reason": {
+              "type": "string"
+            },
+            "candidates": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "variant": {
+                    "type": "string",
+                    "enum": [
+                      "A-json",
+                      "A-jsonl",
+                      "B-json",
+                      "B-jsonl",
+                      "C-page",
+                      "D-json",
+                      "D-jsonl",
+                      "E-json",
+                      "E-jsonl",
+                      "F-csv",
+                      "F-json",
+                      "G-otlp",
+                      "G-otlp-jsonl",
+                      "H-csv"
+                    ]
+                  },
+                  "confidence": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "variant",
+                  "confidence"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "csvHeaders": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "variant",
+            "confidence",
+            "reason",
+            "candidates",
+            "csvHeaders"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "type",
+        "result"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "progress"
+        },
+        "progress": {
+          "type": "object",
+          "properties": {
+            "bytesRead": {
+              "type": "number"
+            },
+            "bytesTotal": {
+              "type": "number"
+            },
+            "rows": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            },
+            "rowsPerSecond": {
+              "type": "number"
+            },
+            "elapsedMs": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "bytesRead",
+            "bytesTotal",
+            "rows",
+            "rowsPerSecond",
+            "elapsedMs"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "type",
+        "progress"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "done"
+        },
+        "summary": {
+          "type": "object",
+          "properties": {
+            "auditId": {
+              "type": "string"
+            },
+            "fileName": {
+              "type": "string"
+            },
+            "fileBytes": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            },
+            "variant": {
+              "type": "string",
+              "enum": [
+                "A-json",
+                "A-jsonl",
+                "B-json",
+                "B-jsonl",
+                "C-page",
+                "D-json",
+                "D-jsonl",
+                "E-json",
+                "E-jsonl",
+                "F-csv",
+                "F-json",
+                "G-otlp",
+                "G-otlp-jsonl",
+                "H-csv"
+              ]
+            },
+            "detection": {
+              "type": "object",
+              "properties": {
+                "variant": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "enum": [
+                        "A-json",
+                        "A-jsonl",
+                        "B-json",
+                        "B-jsonl",
+                        "C-page",
+                        "D-json",
+                        "D-jsonl",
+                        "E-json",
+                        "E-jsonl",
+                        "F-csv",
+                        "F-json",
+                        "G-otlp",
+                        "G-otlp-jsonl",
+                        "H-csv"
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "confidence": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "reason": {
+                  "type": "string"
+                },
+                "candidates": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "variant": {
+                        "type": "string",
+                        "enum": [
+                          "A-json",
+                          "A-jsonl",
+                          "B-json",
+                          "B-jsonl",
+                          "C-page",
+                          "D-json",
+                          "D-jsonl",
+                          "E-json",
+                          "E-jsonl",
+                          "F-csv",
+                          "F-json",
+                          "G-otlp",
+                          "G-otlp-jsonl",
+                          "H-csv"
+                        ]
+                      },
+                      "confidence": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "variant",
+                      "confidence"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "csvHeaders": {
+                  "anyOf": [
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "variant",
+                "confidence",
+                "reason",
+                "candidates",
+                "csvHeaders"
+              ],
+              "additionalProperties": false
+            },
+            "overridden": {
+              "type": "boolean"
+            },
+            "inputFileSha256": {
+              "type": "string"
+            },
+            "snapshot": {
+              "type": "object",
+              "properties": {
+                "file": {
+                  "type": "string"
+                },
+                "date": {
+                  "type": "string"
+                },
+                "sha256": {
+                  "type": "string"
+                },
+                "commit": {
+                  "type": "string"
+                },
+                "sourceUrl": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "file",
+                "date",
+                "sha256",
+                "commit",
+                "sourceUrl"
+              ],
+              "additionalProperties": false
+            },
+            "coverage": {
+              "type": "object",
+              "properties": {
+                "totalRows": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "countedRows": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "rowsWithProviderUsage": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "rowsPriced": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "rowsNotPriced": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "rowsUnresolved": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "rowsMalformed": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "totalRows",
+                "countedRows",
+                "rowsWithProviderUsage",
+                "rowsPriced",
+                "rowsNotPriced",
+                "rowsUnresolved",
+                "rowsMalformed"
+              ],
+              "additionalProperties": false
+            },
+            "totals": {
+              "type": "object",
+              "properties": {
+                "value": {
+                  "type": "object",
+                  "properties": {
+                    "exactUsd": {
+                      "type": "string",
+                      "pattern": "^-?\\d+(\\.\\d+)?$"
+                    },
+                    "displayUsd": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "exactUsd",
+                    "displayUsd"
+                  ],
+                  "additionalProperties": false
+                },
+                "measuredCharge": {
+                  "type": "object",
+                  "properties": {
+                    "exactUsd": {
+                      "type": "string",
+                      "pattern": "^-?\\d+(\\.\\d+)?$"
+                    },
+                    "displayUsd": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "exactUsd",
+                    "displayUsd"
+                  ],
+                  "additionalProperties": false
+                },
+                "estimated": {
+                  "type": "object",
+                  "properties": {
+                    "exactUsd": {
+                      "type": "string",
+                      "pattern": "^-?\\d+(\\.\\d+)?$"
+                    },
+                    "displayUsd": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "exactUsd",
+                    "displayUsd"
+                  ],
+                  "additionalProperties": false
+                },
+                "partial": {
+                  "type": "boolean"
+                },
+                "partialReason": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "value",
+                "measuredCharge",
+                "estimated",
+                "partial",
+                "partialReason"
+              ],
+              "additionalProperties": false
+            },
+            "aggregates": {
+              "type": "object",
+              "properties": {
+                "byModel": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string"
+                      },
+                      "rows": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "requests": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "tokens": {
+                        "type": "object",
+                        "properties": {
+                          "uncachedInput": {
+                            "type": "number"
+                          },
+                          "cacheRead": {
+                            "type": "number"
+                          },
+                          "cacheWrite": {
+                            "type": "number"
+                          },
+                          "output": {
+                            "type": "number"
+                          },
+                          "reasoning": {
+                            "type": "number"
+                          }
+                        },
+                        "required": [
+                          "uncachedInput",
+                          "cacheRead",
+                          "cacheWrite",
+                          "output",
+                          "reasoning"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "valueUsd": {
+                        "type": "string",
+                        "pattern": "^-?\\d+(\\.\\d+)?$"
+                      },
+                      "rowsNotPriced": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "rowsUnresolved": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "required": [
+                      "key",
+                      "rows",
+                      "requests",
+                      "tokens",
+                      "valueUsd",
+                      "rowsNotPriced",
+                      "rowsUnresolved"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "byProvider": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string"
+                      },
+                      "rows": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "requests": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "tokens": {
+                        "type": "object",
+                        "properties": {
+                          "uncachedInput": {
+                            "type": "number"
+                          },
+                          "cacheRead": {
+                            "type": "number"
+                          },
+                          "cacheWrite": {
+                            "type": "number"
+                          },
+                          "output": {
+                            "type": "number"
+                          },
+                          "reasoning": {
+                            "type": "number"
+                          }
+                        },
+                        "required": [
+                          "uncachedInput",
+                          "cacheRead",
+                          "cacheWrite",
+                          "output",
+                          "reasoning"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "valueUsd": {
+                        "type": "string",
+                        "pattern": "^-?\\d+(\\.\\d+)?$"
+                      },
+                      "rowsNotPriced": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "rowsUnresolved": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "required": [
+                      "key",
+                      "rows",
+                      "requests",
+                      "tokens",
+                      "valueUsd",
+                      "rowsNotPriced",
+                      "rowsUnresolved"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "byDay": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string"
+                      },
+                      "rows": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "requests": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "tokens": {
+                        "type": "object",
+                        "properties": {
+                          "uncachedInput": {
+                            "type": "number"
+                          },
+                          "cacheRead": {
+                            "type": "number"
+                          },
+                          "cacheWrite": {
+                            "type": "number"
+                          },
+                          "output": {
+                            "type": "number"
+                          },
+                          "reasoning": {
+                            "type": "number"
+                          }
+                        },
+                        "required": [
+                          "uncachedInput",
+                          "cacheRead",
+                          "cacheWrite",
+                          "output",
+                          "reasoning"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "valueUsd": {
+                        "type": "string",
+                        "pattern": "^-?\\d+(\\.\\d+)?$"
+                      },
+                      "rowsNotPriced": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "rowsUnresolved": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "required": [
+                      "key",
+                      "rows",
+                      "requests",
+                      "tokens",
+                      "valueUsd",
+                      "rowsNotPriced",
+                      "rowsUnresolved"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "byLabel": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string"
+                      },
+                      "rows": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "requests": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "tokens": {
+                        "type": "object",
+                        "properties": {
+                          "uncachedInput": {
+                            "type": "number"
+                          },
+                          "cacheRead": {
+                            "type": "number"
+                          },
+                          "cacheWrite": {
+                            "type": "number"
+                          },
+                          "output": {
+                            "type": "number"
+                          },
+                          "reasoning": {
+                            "type": "number"
+                          }
+                        },
+                        "required": [
+                          "uncachedInput",
+                          "cacheRead",
+                          "cacheWrite",
+                          "output",
+                          "reasoning"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "valueUsd": {
+                        "type": "string",
+                        "pattern": "^-?\\d+(\\.\\d+)?$"
+                      },
+                      "rowsNotPriced": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "rowsUnresolved": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "required": [
+                      "key",
+                      "rows",
+                      "requests",
+                      "tokens",
+                      "valueUsd",
+                      "rowsNotPriced",
+                      "rowsUnresolved"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "overflowed": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "byModel",
+                "byProvider",
+                "byDay",
+                "byLabel",
+                "overflowed"
+              ],
+              "additionalProperties": false
+            },
+            "bands": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "model": {
+                    "type": "string"
+                  },
+                  "resolvedKey": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "band": {
+                    "type": "string"
+                  },
+                  "requests": {
+                    "type": "number"
+                  },
+                  "uncachedInput": {
+                    "type": "number"
+                  },
+                  "cacheRead": {
+                    "type": "number"
+                  },
+                  "cacheWrite": {
+                    "type": "number"
+                  },
+                  "output": {
+                    "type": "number"
+                  },
+                  "valueUsd": {
+                    "type": "string",
+                    "pattern": "^-?\\d+(\\.\\d+)?$"
+                  },
+                  "priced": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "model",
+                  "resolvedKey",
+                  "band",
+                  "requests",
+                  "uncachedInput",
+                  "cacheRead",
+                  "cacheWrite",
+                  "output",
+                  "valueUsd",
+                  "priced"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "excludedFromCost": {
+              "type": "object",
+              "propertyNames": {
+                "type": "string"
+              },
+              "additionalProperties": {
+                "type": "number"
+              }
+            },
+            "mapping": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "timestamp": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "provider": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "model": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "inputTokens": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "inputIncludesCached": {
+                      "type": "boolean"
+                    },
+                    "cacheRead": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "cacheWrite": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "cacheWriteDuration": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "5m",
+                            "1h",
+                            "30m",
+                            "12h"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "outputTokens": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "reasoningTokens": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "tier": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "reportedCharge": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "timestamp",
+                    "provider",
+                    "model",
+                    "inputTokens",
+                    "inputIncludesCached",
+                    "cacheRead",
+                    "cacheWrite",
+                    "cacheWriteDuration",
+                    "outputTokens",
+                    "reasoningTokens",
+                    "tier",
+                    "reportedCharge"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "elapsedMs": {
+              "type": "number"
+            },
+            "rowsPerSecond": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "auditId",
+            "fileName",
+            "fileBytes",
+            "variant",
+            "detection",
+            "overridden",
+            "inputFileSha256",
+            "snapshot",
+            "coverage",
+            "totals",
+            "aggregates",
+            "bands",
+            "excludedFromCost",
+            "mapping",
+            "elapsedMs",
+            "rowsPerSecond"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "type",
+        "summary"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "cancelled"
+        },
+        "cancelMs": {
+          "type": "number"
+        },
+        "partialRowsDeleted": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "type",
+        "cancelMs",
+        "partialRowsDeleted"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "error"
+        },
+        "message": {
+          "type": "string"
+        },
+        "code": {
+          "type": "string",
+          "enum": [
+            "quota",
+            "parse",
+            "unsupported",
+            "internal"
+          ]
+        }
+      },
+      "required": [
+        "type",
+        "message",
+        "code"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "rows"
+        },
+        "offset": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "rows": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "rowIndex": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "timestamp": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "variant": {
+                "type": "string",
+                "enum": [
+                  "A-json",
+                  "A-jsonl",
+                  "B-json",
+                  "B-jsonl",
+                  "C-page",
+                  "D-json",
+                  "D-jsonl",
+                  "E-json",
+                  "E-jsonl",
+                  "F-csv",
+                  "F-json",
+                  "G-otlp",
+                  "G-otlp-jsonl",
+                  "H-csv"
+                ]
+              },
+              "provider": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "modelLogged": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "tierStated": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "standard",
+                      "batch",
+                      "flex",
+                      "priority",
+                      "ultrafast"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "granularity": {
+                "type": "string",
+                "enum": [
+                  "request",
+                  "time_bucket"
+                ]
+              },
+              "tokens": {
+                "type": "object",
+                "properties": {
+                  "uncachedInput": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "cacheRead": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "cacheWrite": {
+                    "type": "object",
+                    "properties": {
+                      "5m": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "1h": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "30m": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "12h": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "required": [
+                      "5m",
+                      "1h",
+                      "30m",
+                      "12h"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "output": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "reasoning": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "uncachedInput",
+                  "cacheRead",
+                  "cacheWrite",
+                  "output",
+                  "reasoning"
+                ],
+                "additionalProperties": false
+              },
+              "notMeasured": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "excluded": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {
+                  "type": "number",
+                  "minimum": 0
+                }
+              },
+              "reported": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "amountUsd": {
+                        "type": "string",
+                        "pattern": "^-?\\d+(\\.\\d+)?$"
+                      },
+                      "field": {
+                        "type": "string"
+                      },
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "charge",
+                          "gateway_estimate"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "amountUsd",
+                      "field",
+                      "kind"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "raw": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {}
+              },
+              "mapping": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "flags": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "tier_assumed",
+                    "duration_assumed",
+                    "inclusion_assumed",
+                    "inclusion_detected",
+                    "long_context_applied",
+                    "long_context_not_applied_bucket",
+                    "totals_disagree",
+                    "cache_exceeds_input",
+                    "aggregate_span",
+                    "overlaps_counted_child",
+                    "aggregate_mismatch",
+                    "cost_inconsistent",
+                    "malformed",
+                    "model_missing"
+                  ]
+                }
+              },
+              "unresolvedReason": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "counted": {
+                "type": "boolean"
+              },
+              "requests": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "resolvedKey": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "match": {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "exact",
+                      "alias",
+                      "none"
+                    ]
+                  },
+                  "detail": {
+                    "type": "string"
+                  },
+                  "source": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "kind",
+                  "detail",
+                  "source"
+                ],
+                "additionalProperties": false
+              },
+              "tierApplied": {
+                "type": "string",
+                "enum": [
+                  "standard",
+                  "batch",
+                  "flex",
+                  "priority",
+                  "ultrafast"
+                ]
+              },
+              "cost": {
+                "type": "object",
+                "properties": {
+                  "valueUsd": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^-?\\d+(\\.\\d+)?$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "label": {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "Measured",
+                          "Measured charge",
+                          "Estimated",
+                          "Not measured",
+                          "Not priced",
+                          "Unresolved"
+                        ]
+                      },
+                      "reason": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "reason"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "estimateUsd": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^-?\\d+(\\.\\d+)?$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "estimateLabel": {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "Measured",
+                          "Measured charge",
+                          "Estimated",
+                          "Not measured",
+                          "Not priced",
+                          "Unresolved"
+                        ]
+                      },
+                      "reason": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "reason"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "appliedRates": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "tokenClass": {
+                          "type": "string"
+                        },
+                        "tokens": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "rateKey": {
+                          "type": "string"
+                        },
+                        "rateUsdPerToken": {
+                          "type": "string"
+                        },
+                        "costUsd": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "tokenClass",
+                        "tokens",
+                        "rateKey",
+                        "rateUsdPerToken",
+                        "costUsd"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "formula": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "valueUsd",
+                  "label",
+                  "estimateUsd",
+                  "estimateLabel",
+                  "appliedRates",
+                  "formula"
+                ],
+                "additionalProperties": false
+              },
+              "labels": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "Measured",
+                        "Measured charge",
+                        "Estimated",
+                        "Not measured",
+                        "Not priced",
+                        "Unresolved"
+                      ]
+                    },
+                    "reason": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "reason"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "snapshot": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string"
+                  },
+                  "date": {
+                    "type": "string"
+                  },
+                  "sha256": {
+                    "type": "string"
+                  },
+                  "commit": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "file",
+                  "date",
+                  "sha256",
+                  "commit"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "rowIndex",
+              "timestamp",
+              "variant",
+              "provider",
+              "modelLogged",
+              "tierStated",
+              "granularity",
+              "tokens",
+              "notMeasured",
+              "excluded",
+              "reported",
+              "raw",
+              "mapping",
+              "flags",
+              "unresolvedReason",
+              "counted",
+              "requests",
+              "resolvedKey",
+              "match",
+              "tierApplied",
+              "cost",
+              "labels",
+              "snapshot"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "type",
+        "offset",
+        "rows"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "row"
+        },
+        "row": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "rowIndex": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "timestamp": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "variant": {
+                  "type": "string",
+                  "enum": [
+                    "A-json",
+                    "A-jsonl",
+                    "B-json",
+                    "B-jsonl",
+                    "C-page",
+                    "D-json",
+                    "D-jsonl",
+                    "E-json",
+                    "E-jsonl",
+                    "F-csv",
+                    "F-json",
+                    "G-otlp",
+                    "G-otlp-jsonl",
+                    "H-csv"
+                  ]
+                },
+                "provider": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "modelLogged": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "tierStated": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "enum": [
+                        "standard",
+                        "batch",
+                        "flex",
+                        "priority",
+                        "ultrafast"
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "granularity": {
+                  "type": "string",
+                  "enum": [
+                    "request",
+                    "time_bucket"
+                  ]
+                },
+                "tokens": {
+                  "type": "object",
+                  "properties": {
+                    "uncachedInput": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "cacheRead": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "cacheWrite": {
+                      "type": "object",
+                      "properties": {
+                        "5m": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "1h": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "30m": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "12h": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "5m",
+                        "1h",
+                        "30m",
+                        "12h"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "output": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "reasoning": {
+                      "anyOf": [
+                        {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "uncachedInput",
+                    "cacheRead",
+                    "cacheWrite",
+                    "output",
+                    "reasoning"
+                  ],
+                  "additionalProperties": false
+                },
+                "notMeasured": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "excluded": {
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "additionalProperties": {
+                    "type": "number",
+                    "minimum": 0
+                  }
+                },
+                "reported": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "amountUsd": {
+                          "type": "string",
+                          "pattern": "^-?\\d+(\\.\\d+)?$"
+                        },
+                        "field": {
+                          "type": "string"
+                        },
+                        "kind": {
+                          "type": "string",
+                          "enum": [
+                            "charge",
+                            "gateway_estimate"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "amountUsd",
+                        "field",
+                        "kind"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "raw": {
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "additionalProperties": {}
+                },
+                "mapping": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "flags": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "tier_assumed",
+                      "duration_assumed",
+                      "inclusion_assumed",
+                      "inclusion_detected",
+                      "long_context_applied",
+                      "long_context_not_applied_bucket",
+                      "totals_disagree",
+                      "cache_exceeds_input",
+                      "aggregate_span",
+                      "overlaps_counted_child",
+                      "aggregate_mismatch",
+                      "cost_inconsistent",
+                      "malformed",
+                      "model_missing"
+                    ]
+                  }
+                },
+                "unresolvedReason": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "counted": {
+                  "type": "boolean"
+                },
+                "requests": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "resolvedKey": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "match": {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "exact",
+                        "alias",
+                        "none"
+                      ]
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "source": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "detail",
+                    "source"
+                  ],
+                  "additionalProperties": false
+                },
+                "tierApplied": {
+                  "type": "string",
+                  "enum": [
+                    "standard",
+                    "batch",
+                    "flex",
+                    "priority",
+                    "ultrafast"
+                  ]
+                },
+                "cost": {
+                  "type": "object",
+                  "properties": {
+                    "valueUsd": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "pattern": "^-?\\d+(\\.\\d+)?$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "label": {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "enum": [
+                            "Measured",
+                            "Measured charge",
+                            "Estimated",
+                            "Not measured",
+                            "Not priced",
+                            "Unresolved"
+                          ]
+                        },
+                        "reason": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "reason"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "estimateUsd": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "pattern": "^-?\\d+(\\.\\d+)?$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "estimateLabel": {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "enum": [
+                            "Measured",
+                            "Measured charge",
+                            "Estimated",
+                            "Not measured",
+                            "Not priced",
+                            "Unresolved"
+                          ]
+                        },
+                        "reason": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "reason"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "appliedRates": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "tokenClass": {
+                            "type": "string"
+                          },
+                          "tokens": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "rateKey": {
+                            "type": "string"
+                          },
+                          "rateUsdPerToken": {
+                            "type": "string"
+                          },
+                          "costUsd": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "tokenClass",
+                          "tokens",
+                          "rateKey",
+                          "rateUsdPerToken",
+                          "costUsd"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "formula": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "valueUsd",
+                    "label",
+                    "estimateUsd",
+                    "estimateLabel",
+                    "appliedRates",
+                    "formula"
+                  ],
+                  "additionalProperties": false
+                },
+                "labels": {
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "additionalProperties": {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "Measured",
+                          "Measured charge",
+                          "Estimated",
+                          "Not measured",
+                          "Not priced",
+                          "Unresolved"
+                        ]
+                      },
+                      "reason": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "reason"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "snapshot": {
+                  "type": "object",
+                  "properties": {
+                    "file": {
+                      "type": "string"
+                    },
+                    "date": {
+                      "type": "string"
+                    },
+                    "sha256": {
+                      "type": "string"
+                    },
+                    "commit": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "file",
+                    "date",
+                    "sha256",
+                    "commit"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "rowIndex",
+                "timestamp",
+                "variant",
+                "provider",
+                "modelLogged",
+                "tierStated",
+                "granularity",
+                "tokens",
+                "notMeasured",
+                "excluded",
+                "reported",
+                "raw",
+                "mapping",
+                "flags",
+                "unresolvedReason",
+                "counted",
+                "requests",
+                "resolvedKey",
+                "match",
+                "tierApplied",
+                "cost",
+                "labels",
+                "snapshot"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "type",
+        "row"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "preview"
+        },
+        "rows": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "rowIndex": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "timestamp": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "variant": {
+                "type": "string",
+                "enum": [
+                  "A-json",
+                  "A-jsonl",
+                  "B-json",
+                  "B-jsonl",
+                  "C-page",
+                  "D-json",
+                  "D-jsonl",
+                  "E-json",
+                  "E-jsonl",
+                  "F-csv",
+                  "F-json",
+                  "G-otlp",
+                  "G-otlp-jsonl",
+                  "H-csv"
+                ]
+              },
+              "provider": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "modelLogged": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "tierStated": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "standard",
+                      "batch",
+                      "flex",
+                      "priority",
+                      "ultrafast"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "granularity": {
+                "type": "string",
+                "enum": [
+                  "request",
+                  "time_bucket"
+                ]
+              },
+              "tokens": {
+                "type": "object",
+                "properties": {
+                  "uncachedInput": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "cacheRead": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "cacheWrite": {
+                    "type": "object",
+                    "properties": {
+                      "5m": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "1h": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "30m": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "12h": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "required": [
+                      "5m",
+                      "1h",
+                      "30m",
+                      "12h"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "output": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "reasoning": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "uncachedInput",
+                  "cacheRead",
+                  "cacheWrite",
+                  "output",
+                  "reasoning"
+                ],
+                "additionalProperties": false
+              },
+              "notMeasured": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "excluded": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {
+                  "type": "number",
+                  "minimum": 0
+                }
+              },
+              "reported": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "amountUsd": {
+                        "type": "string",
+                        "pattern": "^-?\\d+(\\.\\d+)?$"
+                      },
+                      "field": {
+                        "type": "string"
+                      },
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "charge",
+                          "gateway_estimate"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "amountUsd",
+                      "field",
+                      "kind"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "raw": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {}
+              },
+              "mapping": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "flags": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "tier_assumed",
+                    "duration_assumed",
+                    "inclusion_assumed",
+                    "inclusion_detected",
+                    "long_context_applied",
+                    "long_context_not_applied_bucket",
+                    "totals_disagree",
+                    "cache_exceeds_input",
+                    "aggregate_span",
+                    "overlaps_counted_child",
+                    "aggregate_mismatch",
+                    "cost_inconsistent",
+                    "malformed",
+                    "model_missing"
+                  ]
+                }
+              },
+              "unresolvedReason": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "counted": {
+                "type": "boolean"
+              },
+              "requests": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "rowIndex",
+              "timestamp",
+              "variant",
+              "provider",
+              "modelLogged",
+              "tierStated",
+              "granularity",
+              "tokens",
+              "notMeasured",
+              "excluded",
+              "reported",
+              "raw",
+              "mapping",
+              "flags",
+              "unresolvedReason",
+              "counted",
+              "requests"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "errors": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "type",
+        "rows",
+        "errors"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "csv"
+        },
+        "blob": {},
+        "rows": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "type",
+        "blob",
+        "rows"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "cleared"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "estimate"
+        },
+        "usage": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "quota": {
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "type",
+        "usage",
+        "quota"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "sampleProgress"
+        },
+        "bytes": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "type",
+        "bytes"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "sample"
+        },
+        "file": {},
+        "bytes": {
+          "type": "number"
+        },
+        "rows": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "columns": {
+          "type": "integer",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "sourceMix": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
+            "type": "number"
+          }
+        },
+        "ms": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "type",
+        "file",
+        "bytes",
+        "rows",
+        "columns",
+        "sourceMix",
+        "ms"
+      ],
+      "additionalProperties": false
+    }
+  ]
+}
