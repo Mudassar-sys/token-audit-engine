@@ -1,5 +1,5 @@
 {
-  "latest": "2026-11-19-e63cf825.json",
+  "latest": "2026-11-20-7dca6996.json",
   "snapshots": [
     {
       "file": "2026-10-29-aa992e3f.json",
@@ -207,6 +207,15 @@
       "sourceUrl": "https://raw.githubusercontent.com/BerriAI/litellm/274911986e64f29c2713b6f1a2ee4f5009546d21/model_prices_and_context_window.json",
       "fetchedAt": "2026-11-19T05:22:09.945Z",
       "models": 6876
+    },
+    {
+      "file": "2026-11-20-7dca6996.json",
+      "date": "2026-11-20",
+      "commit": "65d8137acf16d46dd56656e34ccca1e3e73739ee",
+      "sha256": "7dca6996f48ad42b1b621940ea85f1a066eec9f3b671161dca3cab3cdd62ff27",
+      "sourceUrl": "https://raw.githubusercontent.com/BerriAI/litellm/65d8137acf16d46dd56656e34ccca1e3e73739ee/model_prices_and_context_window.json",
+      "fetchedAt": "2026-11-20T05:22:06.358Z",
+      "models": 6885
     }
   ]
 }
